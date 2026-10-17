@@ -21,6 +21,8 @@ Describe 'VariableResolver' {
     It 'arithmetic adds with external values'       { (V 'oval:t:var:arith').Values -join '|' | Should Be '42' }
     It 'unique removes duplicates'                  { (V 'oval:t:var:unique').Values -join '|' | Should Be 'b|c' }
     It 'escape_regex escapes metacharacters'        { (V 'oval:t:var:escape').Values -join '|' | Should Be 'a\.b\*c' }
+    It 'merge joins values in document order (OVAL 5.12)' { (V 'oval:t:var:merge').Values -join '|' | Should Be 'c;b' }
+    It 'merge can sort ascending'                   { (V 'oval:t:var:merge_sorted').Values -join '|' | Should Be 'bc' }
     It 'begin prepends the character when missing'  { (V 'oval:t:var:begin').Values -join '|' | Should Be '\Windows' }
 
     It 'a missing external variable is an Error' {

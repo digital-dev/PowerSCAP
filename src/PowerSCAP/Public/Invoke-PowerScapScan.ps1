@@ -22,6 +22,7 @@ function Invoke-PowerScapScan {
         [switch]$AllowUnelevated
     )
 
+    $ErrorActionPreference = 'Stop'
     $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
     if (-not $AllowUnelevated -and -not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
         throw 'PowerSCAP must run elevated.'

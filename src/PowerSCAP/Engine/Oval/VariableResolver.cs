@@ -222,6 +222,19 @@ namespace PowerScap.Engine.Oval
                 }
                 case "time_difference":
                     return TimeDifference(e, datatype);
+                case "merge":
+                {
+                    // OVAL 5.12: concatenate every input value into a single value.
+                    var inputs = Children(e, datatype);
+                    var r = new VariableResult();
+                    if (!Merge(r, inputs)) return r;
+                    var all = inputs.SelectMany(i => i.Values).ToList();
+                    string sort = e.GetAttribute("sort");
+                    if (sort == "ascending") all.Sort(StringComparer.Ordinal);
+                    else if (sort == "descending") { all.Sort(StringComparer.Ordinal); all.Reverse(); }
+                    r.Values.Add(string.Join(e.GetAttribute("delimiter"), all));
+                    return r;
+                }
                 default:
                     return VariableResult.Fail(CollectedFlag.Error, "Unsupported variable component " + e.LocalName);
             }

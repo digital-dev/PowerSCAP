@@ -43,6 +43,13 @@
     <local_variable id="oval:t:var:escape" version="1" datatype="string" comment="escape">
       <escape_regex><literal_component>a.b*c</literal_component></escape_regex>
     </local_variable>
+    <local_variable id="oval:t:var:merge" version="1" datatype="string" comment="merge (OVAL 5.12)">
+      <merge delimiter=";" sort="document"><variable_component var_ref="oval:t:var:cb"/></merge>
+    </local_variable>
+    <local_variable id="oval:t:var:merge_sorted" version="1" datatype="string" comment="merge sorted">
+      <merge delimiter="" sort="ascending"><variable_component var_ref="oval:t:var:cb"/></merge>
+    </local_variable>
+    <constant_variable id="oval:t:var:cb" version="1" datatype="string" comment="c,b"><value>c</value><value>b</value></constant_variable>
     <local_variable id="oval:t:var:begin" version="1" datatype="string" comment="begin">
       <begin character="\"><literal_component>Windows</literal_component></begin>
     </local_variable>
