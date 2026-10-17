@@ -10,6 +10,10 @@ param(
     [string]$Path
 )
 
+# Accept "A,B" as one argument (callers outside PowerShell can't pass arrays).
+$Tag = @($Tag | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+$ExcludeTag = @($ExcludeTag | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+
 if ($PSVersionTable.PSEdition -eq 'Core') {
     # Tests must run on the shipping runtime.
     $argsList = @('-NoProfile', '-NonInteractive', '-File', $PSCommandPath)
