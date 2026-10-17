@@ -20,6 +20,7 @@ namespace PowerScapTests
             if (!spec.Entities.TryGetValue("items", out items)) return result;
             string csv = items.Values.Count > 0 ? items.Values[0] : "";
             if (csv == "throw") throw new InvalidOperationException("collector exploded");
+            if (csv.Length == 0) { result.Flag = CollectedFlag.DoesNotExist; return result; }
             foreach (var v in csv.Split(','))
             {
                 var item = new OvalItem(ctx.NextItemId(), "fake_item");

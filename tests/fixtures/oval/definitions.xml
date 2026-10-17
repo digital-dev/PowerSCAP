@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<oval_definitions xmlns="http://oval.mitre.org/XMLSchema/oval-definitions-5"
+    xmlns:oval="http://oval.mitre.org/XMLSchema/oval-common-5"
+    xmlns:t="urn:powerscap:test">
+  <generator><oval:schema_version>5.11.2</oval:schema_version><oval:timestamp>2026-10-16T00:00:00</oval:timestamp></generator>
+  <definitions>
+    <definition id="oval:t:def:exists" version="1" class="compliance">
+      <metadata><title>exists</title><description>d</description></metadata>
+      <criteria><criterion test_ref="oval:t:tst:exists"/></criteria>
+    </definition>
+    <definition id="oval:t:def:mismatch" version="1" class="compliance">
+      <metadata><title>mismatch</title><description>d</description></metadata>
+      <criteria><criterion test_ref="oval:t:tst:all_are_a"/></criteria>
+    </definition>
+    <definition id="oval:t:def:extend_negated" version="1" class="compliance">
+      <metadata><title>extend</title><description>d</description></metadata>
+      <criteria><extend_definition definition_ref="oval:t:def:mismatch" negate="true"/></criteria>
+    </definition>
+    <definition id="oval:t:def:or_error_true" version="1" class="compliance">
+      <metadata><title>or</title><description>d</description></metadata>
+      <criteria operator="OR"><criterion test_ref="oval:t:tst:error"/><criterion test_ref="oval:t:tst:exists"/></criteria>
+    </definition>
+    <definition id="oval:t:def:not_applicable" version="1" class="compliance">
+      <metadata><title>na</title><description>d</description></metadata>
+      <criteria><criterion test_ref="oval:t:tst:all_are_a" applicability_check="true"/><criterion test_ref="oval:t:tst:exists"/></criteria>
+    </definition>
+    <definition id="oval:t:def:var_check" version="1" class="compliance">
+      <metadata><title>varcheck</title><description>d</description></metadata>
+      <criteria><criterion test_ref="oval:t:tst:any_in_bc"/></criteria>
+    </definition>
+    <definition id="oval:t:def:not_collected" version="1" class="compliance">
+      <metadata><title>nc</title><description>d</description></metadata>
+      <criteria><criterion test_ref="oval:t:tst:unknown_object"/></criteria>
+    </definition>
+    <definition id="oval:t:def:none_exist" version="1" class="compliance">
+      <metadata><title>none</title><description>d</description></metadata>
+      <criteria><criterion test_ref="oval:t:tst:none_exist"/></criteria>
+    </definition>
+  </definitions>
+  <tests>
+    <t:fake_test id="oval:t:tst:exists" version="1" check="all" check_existence="at_least_one_exists" comment="exists">
+      <t:object object_ref="oval:t:obj:ab"/>
+    </t:fake_test>
+    <t:fake_test id="oval:t:tst:all_are_a" version="1" check="all" comment="all a">
+      <t:object object_ref="oval:t:obj:ab"/>
+      <t:state state_ref="oval:t:ste:a"/>
+    </t:fake_test>
+    <t:fake_test id="oval:t:tst:error" version="1" check="all" comment="error">
+      <t:object object_ref="oval:t:obj:boom"/>
+    </t:fake_test>
+    <t:fake_test id="oval:t:tst:any_in_bc" version="1" check="at least one" comment="var check">
+      <t:object object_ref="oval:t:obj:ab"/>
+      <t:state state_ref="oval:t:ste:in_bc"/>
+    </t:fake_test>
+    <t:unknown_test id="oval:t:tst:unknown_object" version="1" check="all" comment="nc">
+      <t:object object_ref="oval:t:obj:unknown"/>
+    </t:unknown_test>
+    <t:fake_test id="oval:t:tst:none_exist" version="1" check="all" check_existence="none_exist" comment="none">
+      <t:object object_ref="oval:t:obj:empty"/>
+    </t:fake_test>
+  </tests>
+  <objects>
+    <t:fake_object id="oval:t:obj:ab" version="1"><t:items>a,b</t:items></t:fake_object>
+    <t:fake_object id="oval:t:obj:boom" version="1"><t:items>throw</t:items></t:fake_object>
+    <t:fake_object id="oval:t:obj:empty" version="1"><t:items></t:items></t:fake_object>
+    <t:unknown_object id="oval:t:obj:unknown" version="1"/>
+  </objects>
+  <states>
+    <t:fake_state id="oval:t:ste:a" version="1"><t:name>a</t:name></t:fake_state>
+    <t:fake_state id="oval:t:ste:in_bc" version="1"><t:name var_ref="oval:t:var:bc" var_check="at least one"/></t:fake_state>
+  </states>
+  <variables>
+    <constant_variable id="oval:t:var:bc" version="1" datatype="string" comment="b,c"><value>b</value><value>c</value></constant_variable>
+  </variables>
+</oval_definitions>
