@@ -56,7 +56,15 @@ namespace PowerScap.Engine.Oval
             }
             if (output.Objects.Count == 0)
             {
-                item.Entities.Add(OvalEntity.Missing("value"));
+                // No output because the cmdlet failed (e.g. access denied) is a collection error, not absence.
+                var value = OvalEntity.Missing("value");
+                if (output.Errors.Count > 0)
+                {
+                    value.Status = ItemStatus.Error;
+                    item.Status = ItemStatus.Error;
+                    r.Flag = CollectedFlag.Error;
+                }
+                item.Entities.Add(value);
                 item.Messages.AddRange(output.Errors);
                 r.Messages.AddRange(output.Errors);
             }

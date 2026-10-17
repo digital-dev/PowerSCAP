@@ -38,6 +38,13 @@ Describe 'Extra collectors' {
         ($value.Fields | Where-Object { $_.Name -eq 'primary' }).Value | Should Be 'True'
     }
 
+    It 'cmdlet_object whose cmdlet fails is an Error, not an absent value' {
+        $ctx2 = New-DefaultContext -Objects '<win:cmdlet_object id="oval:t:obj:cmdlet_err" version="1"><win:module_name>CimCmdlets</win:module_name><win:module_id xsi:nil="true"/><win:module_version datatype="version" xsi:nil="true"/><win:verb>Get</win:verb><win:noun>CimInstance</win:noun><win:parameters datatype="record"><field name="classname">Win32_Nothing</field><field name="namespace">root\NoSuchNamespacePowerSCAP</field></win:parameters><win:select datatype="record"><field name="property">x</field></win:select></win:cmdlet_object>'
+        $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:cmdlet_err'), $ctx2)
+        $o.Flag.ToString() | Should Be 'Error'
+        $o.Items[0].Status.ToString() | Should Be 'Error'
+    }
+
     It 'cmdlet_object without a native implementation is not collected (PowerShell is never run)' {
         $o = C 'oval:t:obj:cmdlet_unknown'
         $o.Flag.ToString() | Should Be 'NotCollected'
