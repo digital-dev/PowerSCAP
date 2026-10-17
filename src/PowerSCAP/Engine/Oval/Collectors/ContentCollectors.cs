@@ -196,7 +196,7 @@ namespace PowerScap.Engine.Oval
                                 }
                                 item.Entities.Add(record);
                             }
-                            if (rows == 0) item.Entities.Add(OvalEntity.Missing("result"));
+                            if (rows == 0) continue; // no rows: nothing exists for this query
                         }
                     }
                     catch (Exception ex)
@@ -209,6 +209,7 @@ namespace PowerScap.Engine.Oval
                     }
                     r.Items.Add(item);
                 }
+            if (r.Items.Count == 0 && r.Flag == CollectedFlag.Complete) r.Flag = CollectedFlag.DoesNotExist;
             return r;
         }
 

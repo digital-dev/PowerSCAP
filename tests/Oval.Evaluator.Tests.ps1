@@ -20,6 +20,9 @@ Describe 'OvalEvaluator' {
     It 'object with no collector gives Unknown'                 { D 'oval:t:def:not_collected' | Should Be 'Unknown' }
     It 'none_exist with no items is True'                       { D 'oval:t:def:none_exist' | Should Be 'True' }
 
+    It 'state entity check_existence none_exist passes when the item lacks the entity' { D 'oval:t:def:entity_none_exist' | Should Be 'True' }
+    It 'a state entity missing from the item is False, not Error' { D 'oval:t:def:entity_missing' | Should Be 'False' }
+
     It 'records test results with their items' {
         $r = $ev.Evaluate('oval:t:def:mismatch')
         $r.Tests.Count | Should Be 1

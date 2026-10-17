@@ -106,9 +106,9 @@ namespace PowerScap.Engine.Oval
                             item.Add("result", Convert.ToString(p.Value, CultureInfo.InvariantCulture));
                             count++;
                         }
-                    if (count == 0) item.Entities.Add(OvalEntity.Missing("result"));
-                    r.Items.Add(item);
+                    if (count > 0) r.Items.Add(item); // no rows: nothing exists
                 }
+            if (r.Items.Count == 0) r.Flag = CollectedFlag.DoesNotExist;
             return r;
         }
     }
@@ -219,7 +219,9 @@ namespace PowerScap.Engine.Oval
                 int exit;
                 string stdout, stderr;
                 Run(shell, command, out exit, out stdout, out stderr);
-                var lines = stdout.Replace("\r\n", "\n").Split('\n');
+                // Lines as a line reader sees them: the final newline does not start another (empty) line.
+                var lines = stdout.Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
+                if (stdout.Length == 0) lines = new string[0];
                 foreach (var pattern in (patternC == null ? new List<string> { ".*" } : patternC.Values))
                 {
                     var rx = OvalOps.ToRegex(pattern);

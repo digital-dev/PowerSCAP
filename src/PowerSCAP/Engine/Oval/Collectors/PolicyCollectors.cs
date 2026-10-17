@@ -20,6 +20,8 @@ namespace PowerScap.Engine.Oval
             item.Add("password_hist_len", N(p.PasswordHistoryLength), "int");
             AddBool(item, "password_complexity", p.Complexity);
             AddBool(item, "reversible_encryption", p.ReversibleEncryption);
+            string anon = SecurityPolicy.Get("System Access", "LSAAnonymousNameLookup");
+            AddBool(item, "anonymous_name_lookup", anon == null ? (bool?)null : anon.Trim() == "1");
             var r = new CollectedObject(spec.ObjectId);
             r.Items.Add(item);
             return r;
@@ -38,6 +40,42 @@ namespace PowerScap.Engine.Oval
                 return;
             }
             item.Add(name, value.Value ? "1" : "0", "boolean");
+        }
+    }
+
+    /// <summary>Local security policy values exported by secedit (requires administrator).</summary>
+    public static class SecurityPolicy
+    {
+        public static string Get(string section, string key)
+        {
+            string file = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "powerscap_secpol_" + Guid.NewGuid().ToString("N") + ".inf");
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo(System.IO.Path.Combine(Environment.SystemDirectory, "secedit.exe"),
+                    "/export /cfg \"" + file + "\" /areas SECURITYPOLICY /quiet")
+                { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true };
+                using (var p = System.Diagnostics.Process.Start(psi))
+                {
+                    p.StandardOutput.ReadToEnd();
+                    p.WaitForExit(60000);
+                }
+                if (!System.IO.File.Exists(file)) return null;
+                string current = null;
+                foreach (var raw in System.IO.File.ReadAllLines(file))
+                {
+                    string line = raw.Trim();
+                    if (line.StartsWith("[")) { current = line.Trim('[', ']'); continue; }
+                    int eq = line.IndexOf('=');
+                    if (eq < 0 || !string.Equals(current, section, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (string.Equals(line.Substring(0, eq).Trim(), key, StringComparison.OrdinalIgnoreCase))
+                        return line.Substring(eq + 1).Trim();
+                }
+                return null;
+            }
+            finally
+            {
+                try { System.IO.File.Delete(file); } catch (Exception) { }
+            }
         }
     }
 

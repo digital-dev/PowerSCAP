@@ -36,8 +36,24 @@
       <metadata><title>none</title><description>d</description></metadata>
       <criteria><criterion test_ref="oval:t:tst:none_exist"/></criteria>
     </definition>
+    <definition id="oval:t:def:entity_none_exist" version="1" class="compliance">
+      <metadata><title>entity check_existence none_exist</title><description>d</description></metadata>
+      <criteria><criterion test_ref="oval:t:tst:no_extra"/></criteria>
+    </definition>
+    <definition id="oval:t:def:entity_missing" version="1" class="compliance">
+      <metadata><title>missing entity with default existence</title><description>d</description></metadata>
+      <criteria><criterion test_ref="oval:t:tst:needs_extra"/></criteria>
+    </definition>
   </definitions>
   <tests>
+    <t:fake_test id="oval:t:tst:no_extra" version="1" check="all" comment="no extra entity">
+      <t:object object_ref="oval:t:obj:ab"/>
+      <t:state state_ref="oval:t:ste:no_extra"/>
+    </t:fake_test>
+    <t:fake_test id="oval:t:tst:needs_extra" version="1" check="all" comment="extra entity required">
+      <t:object object_ref="oval:t:obj:ab"/>
+      <t:state state_ref="oval:t:ste:extra_x"/>
+    </t:fake_test>
     <t:fake_test id="oval:t:tst:exists" version="1" check="all" check_existence="at_least_one_exists" comment="exists">
       <t:object object_ref="oval:t:obj:ab"/>
     </t:fake_test>
@@ -67,6 +83,8 @@
   </objects>
   <states>
     <t:fake_state id="oval:t:ste:a" version="1"><t:name>a</t:name></t:fake_state>
+    <t:fake_state id="oval:t:ste:no_extra" version="1"><t:extra check_existence="none_exist"/></t:fake_state>
+    <t:fake_state id="oval:t:ste:extra_x" version="1"><t:extra>x</t:extra></t:fake_state>
     <t:fake_state id="oval:t:ste:in_bc" version="1"><t:name var_ref="oval:t:var:bc" var_check="at least one"/></t:fake_state>
   </states>
   <variables>

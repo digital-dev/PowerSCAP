@@ -27,7 +27,15 @@ namespace PowerScap.Engine.Oval
 
         static OvalResult EvaluateEntity(XmlElement stateEntity, IList<OvalEntity> itemEntities, OvalContext ctx)
         {
-            if (itemEntities.Count == 0) return OvalResult.Error;
+            // Entity-level check_existence (default at_least_one_exists) decides first whether values are compared.
+            string checkExistence = stateEntity.HasAttribute("check_existence") ? stateEntity.GetAttribute("check_existence") : "at_least_one_exists";
+            int exists = itemEntities.Count(e => e.Status == ItemStatus.Exists);
+            int dne = itemEntities.Count(e => e.Status == ItemStatus.DoesNotExist);
+            int err = itemEntities.Count(e => e.Status == ItemStatus.Error);
+            int nc = itemEntities.Count(e => e.Status == ItemStatus.NotCollected);
+            OvalResult existence = OvalLogic.Existence(checkExistence, exists, dne, err, nc);
+            if (existence != OvalResult.True || exists == 0) return existence;
+
             var criterion = ObjectEvaluator.BuildCriterion(stateEntity, ctx);
             if (criterion.VariableFlag.HasValue) return OvalResult.Error;
             string entityCheck = stateEntity.HasAttribute("entity_check") ? stateEntity.GetAttribute("entity_check") : "all";
@@ -37,7 +45,7 @@ namespace PowerScap.Engine.Oval
             {
                 if (ie.Status == ItemStatus.Error) { results.Add(OvalResult.Error); continue; }
                 if (ie.Status == ItemStatus.NotCollected) { results.Add(OvalResult.Unknown); continue; }
-                if (ie.Status == ItemStatus.DoesNotExist) { results.Add(OvalResult.False); continue; }
+                if (ie.Status == ItemStatus.DoesNotExist) continue; // existence already judged above
                 if (criterion.Datatype == "record")
                     results.Add(EvaluateRecord(stateEntity, ie, ctx));
                 else

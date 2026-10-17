@@ -9,6 +9,10 @@ $objects = @"
 <ind:shellcommand_object id="oval:t:obj:shell" version="1"><ind:shell>cmd</ind:shell><ind:command>echo Alpha - 1: &amp; echo Beta - 2: &amp; echo Alpha - 3:</ind:command><ind:pattern>Alpha - (\d+):</ind:pattern></ind:shellcommand_object>
 <win:ntuser_object id="oval:t:obj:ntuser" version="1"><win:key>Software\PowerSCAPTest</win:key><win:name>NtValue</win:name></win:ntuser_object>
 <win:userright_object id="oval:t:obj:right" version="1"><win:userright>SE_DEBUG_NAME</win:userright></win:userright_object>
+<ind:shellcommand_object id="oval:t:obj:lines" version="1"><ind:shell>cmd</ind:shell><ind:command>echo A: &amp; echo. &amp; echo B:</ind:command><ind:pattern>.*</ind:pattern></ind:shellcommand_object>
+<win:wmi57_object id="oval:t:obj:wmi57_none" version="1"><win:namespace>root\cimv2</win:namespace><win:wql>SELECT Name FROM Win32_Service WHERE Name='NoSuchServicePowerSCAP'</win:wql></win:wmi57_object>
+<win:wmi_object id="oval:t:obj:wmi_none" version="1"><win:namespace>root\cimv2</win:namespace><win:wql>SELECT Name FROM Win32_Service WHERE Name='NoSuchServicePowerSCAP'</win:wql></win:wmi_object>
+<win:passwordpolicy_object id="oval:t:obj:pw" version="1"/>
 "@
 
 Describe 'Extra collectors' {
@@ -43,7 +47,34 @@ Describe 'Extra collectors' {
         $item.Get('logged_on')[0].Value | Should Be '1'
     }
 
+    It 'shellcommand keeps blank lines but not the trailing newline' {
+        (C 'oval:t:obj:lines').Items.Count | Should Be 3
+    }
+
+    It 'wmi57 with no rows is DoesNotExist' {
+        $o = C 'oval:t:obj:wmi57_none'
+        $o.Items.Count | Should Be 0
+        $o.Flag.ToString() | Should Be 'DoesNotExist'
+    }
+
+    It 'wmi with no rows is DoesNotExist' {
+        (C 'oval:t:obj:wmi_none').Flag.ToString() | Should Be 'DoesNotExist'
+    }
+
+    It 'passwordpolicy reports anonymous_name_lookup (Error without elevation)' {
+        $e = (C 'oval:t:obj:pw').Items[0].Get('anonymous_name_lookup')
+        $e.Count | Should Be 1
+    }
+
     Remove-Item 'HKCU:\Software\PowerSCAPTest' -Recurse -Force
+}
+
+Describe 'passwordpolicy anonymous_name_lookup' -Tag Admin {
+    $ctx = New-DefaultContext -Objects $objects
+    It 'reads the LSA anonymous name lookup policy as a boolean' {
+        $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx.FindObject('oval:t:obj:pw'), $ctx)
+        $o.Items[0].Get('anonymous_name_lookup')[0].Value | Should Match '^(0|1)$'
+    }
 }
 
 Describe 'userright_object' -Tag Admin {
