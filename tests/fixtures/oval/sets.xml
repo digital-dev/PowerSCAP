@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<oval_definitions xmlns="http://oval.mitre.org/XMLSchema/oval-definitions-5"
+    xmlns:oval="http://oval.mitre.org/XMLSchema/oval-common-5"
+    xmlns:t="urn:powerscap:test">
+  <generator><oval:schema_version>5.11.2</oval:schema_version><oval:timestamp>2026-10-16T00:00:00</oval:timestamp></generator>
+  <objects>
+    <t:fake_object id="oval:t:obj:a" version="1"><t:items>a,b</t:items></t:fake_object>
+    <t:fake_object id="oval:t:obj:b" version="1"><t:items>b,c</t:items></t:fake_object>
+    <t:fake_object id="oval:t:obj:abc" version="1"><t:items>a,b,c</t:items></t:fake_object>
+    <t:fake_object id="oval:t:obj:bonly" version="1"><t:items>b</t:items></t:fake_object>
+    <t:fake_object id="oval:t:obj:boom" version="1"><t:items>throw</t:items></t:fake_object>
+    <t:unknown_object id="oval:t:obj:unknown" version="1"/>
+    <t:fake_object id="oval:t:obj:union" version="1">
+      <set><object_reference>oval:t:obj:a</object_reference><object_reference>oval:t:obj:b</object_reference></set>
+    </t:fake_object>
+    <t:fake_object id="oval:t:obj:complement" version="1">
+      <set set_operator="COMPLEMENT"><object_reference>oval:t:obj:abc</object_reference><object_reference>oval:t:obj:bonly</object_reference></set>
+    </t:fake_object>
+    <t:fake_object id="oval:t:obj:intersect" version="1">
+      <set set_operator="INTERSECTION"><object_reference>oval:t:obj:a</object_reference><object_reference>oval:t:obj:b</object_reference></set>
+    </t:fake_object>
+    <t:fake_object id="oval:t:obj:filtered" version="1">
+      <set><object_reference>oval:t:obj:a</object_reference><filter action="exclude">oval:t:ste:is_a</filter></set>
+    </t:fake_object>
+  </objects>
+  <states>
+    <t:fake_state id="oval:t:ste:is_a" version="1"><t:name>a</t:name></t:fake_state>
+  </states>
+</oval_definitions>
