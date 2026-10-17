@@ -30,6 +30,8 @@ namespace PowerScap.Engine.Cache
         public string BenchmarkVersion { get; set; }
         public string BenchmarkTitle { get; set; }
         public bool Imported { get; set; }
+        /// <summary>XML signature check made when the file entered the cache.</summary>
+        public SignatureReport Signature { get; set; }
         /// <summary>Path relative to the cache root.</summary>
         public string RelativePath { get; set; }
 
@@ -145,6 +147,7 @@ namespace PowerScap.Engine.Cache
             entry.Sha256 = Sha256(temp);
             entry.Id = entry.Sha256.Substring(0, 16);
             Describe(temp, entry);
+            entry.Signature = SignatureVerifier.Verify(temp);
             lock (gate)
             {
                 var entries = Read();
@@ -231,6 +234,7 @@ namespace PowerScap.Engine.Cache
                     };
                     e.Id = e.Sha256.Substring(0, 16);
                     try { Describe(file, e); } catch (CacheException) { continue; }
+                    e.Signature = SignatureVerifier.Verify(file);
                     list.Add(e);
                 }
             }
