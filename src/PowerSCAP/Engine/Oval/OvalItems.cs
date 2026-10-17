@@ -165,6 +165,8 @@ namespace PowerScap.Engine.Oval
         public XmlDocument Definitions { get; private set; }
         public CollectorRegistry Collectors { get; private set; }
         public IDictionary<string, CollectedObject> Cache { get; private set; }
+        /// <summary>Variable resolution; when null, var_ref entities resolve to no values.</summary>
+        public VariableResolver Variables { get; set; }
         readonly Dictionary<string, XmlElement> index = new Dictionary<string, XmlElement>(StringComparer.Ordinal);
         int nextItemId;
 

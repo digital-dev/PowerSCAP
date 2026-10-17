@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<oval_definitions xmlns="http://oval.mitre.org/XMLSchema/oval-definitions-5"
+    xmlns:oval="http://oval.mitre.org/XMLSchema/oval-common-5"
+    xmlns:t="urn:powerscap:test">
+  <generator><oval:schema_version>5.11.2</oval:schema_version><oval:timestamp>2026-10-16T00:00:00</oval:timestamp></generator>
+  <objects>
+    <t:fake_object id="oval:t:obj:abc" version="1"><t:items>a,b,c</t:items></t:fake_object>
+    <t:fake_object id="oval:t:obj:byvar" version="1"><t:items var_ref="oval:t:var:csv"/></t:fake_object>
+    <t:fake_object id="oval:t:obj:byext" version="1"><t:items var_ref="oval:t:var:missing_ext"/></t:fake_object>
+  </objects>
+  <variables>
+    <constant_variable id="oval:t:var:bc" version="1" datatype="string" comment="b,c"><value>b</value><value>c</value></constant_variable>
+    <constant_variable id="oval:t:var:csv" version="1" datatype="string" comment="csv"><value>x,y</value></constant_variable>
+    <external_variable id="oval:t:var:ext" version="1" datatype="int" comment="ext"/>
+    <external_variable id="oval:t:var:missing_ext" version="1" datatype="string" comment="missing"/>
+    <local_variable id="oval:t:var:concat" version="1" datatype="string" comment="concat">
+      <concat><literal_component>a</literal_component><variable_component var_ref="oval:t:var:bc"/></concat>
+    </local_variable>
+    <local_variable id="oval:t:var:capture" version="1" datatype="string" comment="capture">
+      <regex_capture pattern="(\d+\.\d+)"><literal_component>Version 10.0.1</literal_component></regex_capture>
+    </local_variable>
+    <local_variable id="oval:t:var:split" version="1" datatype="string" comment="split">
+      <split delimiter=";"><literal_component>a;b</literal_component></split>
+    </local_variable>
+    <local_variable id="oval:t:var:substring" version="1" datatype="string" comment="substring">
+      <substring substring_start="2" substring_length="3"><literal_component>abcdef</literal_component></substring>
+    </local_variable>
+    <local_variable id="oval:t:var:count" version="1" datatype="int" comment="count">
+      <count><variable_component var_ref="oval:t:var:bc"/></count>
+    </local_variable>
+    <local_variable id="oval:t:var:glob" version="1" datatype="string" comment="glob">
+      <glob_to_regex><literal_component>*.exe</literal_component></glob_to_regex>
+    </local_variable>
+    <local_variable id="oval:t:var:objcomp" version="1" datatype="string" comment="items of object">
+      <object_component object_ref="oval:t:obj:abc" item_field="name"/>
+    </local_variable>
+    <local_variable id="oval:t:var:arith" version="1" datatype="int" comment="arith">
+      <arithmetic arithmetic_operation="add"><literal_component datatype="int">2</literal_component><variable_component var_ref="oval:t:var:ext"/></arithmetic>
+    </local_variable>
+    <local_variable id="oval:t:var:unique" version="1" datatype="string" comment="unique">
+      <unique><variable_component var_ref="oval:t:var:bc"/><variable_component var_ref="oval:t:var:bc"/></unique>
+    </local_variable>
+    <local_variable id="oval:t:var:escape" version="1" datatype="string" comment="escape">
+      <escape_regex><literal_component>a.b*c</literal_component></escape_regex>
+    </local_variable>
+    <local_variable id="oval:t:var:begin" version="1" datatype="string" comment="begin">
+      <begin character="\"><literal_component>Windows</literal_component></begin>
+    </local_variable>
+  </variables>
+</oval_definitions>

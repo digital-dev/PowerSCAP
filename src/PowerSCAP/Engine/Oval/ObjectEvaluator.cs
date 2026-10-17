@@ -91,10 +91,18 @@ namespace PowerScap.Engine.Oval
             return c;
         }
 
-        /// <summary>Hook for variable resolution (OVAL variables are added in a later task).</summary>
         static void ResolveVariable(EntityCriterion c, OvalContext ctx)
         {
-            c.Values = new List<string>();
+            if (ctx.Variables == null)
+            {
+                c.Values = new List<string>();
+                c.VariableFlag = CollectedFlag.Error;
+                return;
+            }
+            VariableResult r = ctx.Variables.Resolve(c.VarRef);
+            c.Values = new List<string>(r.Values);
+            if (r.Flag != CollectedFlag.Complete) c.VariableFlag = r.Flag;
+            else if (c.Values.Count == 0) c.VariableFlag = CollectedFlag.DoesNotExist;
         }
 
         static CollectedObject EvaluateSet(string id, XmlElement set, OvalContext ctx)
