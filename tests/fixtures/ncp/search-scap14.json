@@ -2,9 +2,9 @@
  "response": [
   {
    "grid": {
-    "resultsPerPage": 8,
+    "resultsPerPage": 9,
     "startIndex": 0,
-    "totalResults": 8,
+    "totalResults": 9,
     "checklists": [
      {
       "checklistId": 1028,
@@ -495,6 +495,46 @@
         "title": "SCC 5.15 Windows",
         "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_Windows_bundle.zip",
         "resourceTypeName": "Automated Content"
+       }
+      ]
+     },
+     {
+      "checklistId": 228,
+      "name": "Windows 2008 STIG",
+      "version": "Version 6, Release 46",
+      "authority": "Defense Information Systems Agency",
+      "lastModified": "2020-07-07T14:47:40.417",
+      "targets": [
+       "Microsoft Windows Defender",
+       "Microsoft Internet Explorer",
+       "Microsoft Windows Mail",
+       "Microsoft Windows Media Player",
+       "Microsoft Windows Server 2008"
+      ],
+      "resources": [
+       {
+        "checklistResourceId": 6109,
+        "title": "Sunset - Microsoft Windows 2008 MS STIG - Ver 6, Rel 46",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_2008_MS_V6R46_STIG.zip",
+        "resourceTypeName": "Standalone XCCDF 1.1.4"
+       },
+       {
+        "checklistResourceId": 6110,
+        "title": "Sunset - Microsoft Windows 2008 MS STIG Benchmark - Ver 6, Rel 45",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_2008_MS_V6R45_STIG_SCAP_1-2_Benchmark.zip",
+        "resourceTypeName": "SCAP 1.2 Content"
+       },
+       {
+        "checklistResourceId": 6111,
+        "title": "Sunset - Microsoft Windows 2008 DC STIG - Ver 6, Rel 47",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_2008_DC_V6R47_STIG.zip",
+        "resourceTypeName": "Standalone XCCDF 1.1.4"
+       },
+       {
+        "checklistResourceId": 6112,
+        "title": "Sunset - Microsoft Windows 2008 DC STIG Benchmark - Ver 6, Rel 45",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_2008_DC_V6R45_STIG_SCAP_1-2_Benchmark.zip",
+        "resourceTypeName": "SCAP 1.2 Content"
        }
       ]
      }

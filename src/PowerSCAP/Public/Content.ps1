@@ -73,9 +73,19 @@ function Save-PowerScapBenchmark {
             $checklist = $InputObject; $resource = [PowerScap.Engine.Ncp.NcpClient]::PickScapResource($InputObject)
         }
         else { throw "Save-PowerScapBenchmark takes a checklist or match from Find-PowerScapBenchmark, not $($InputObject.GetType().Name)." }
-        if (-not $resource) { throw "$($checklist.Name) has no SCAP content for Windows." }
+        # One unavailable benchmark must not stop the rest of the pipeline: report it and continue.
+        if (-not $resource) {
+            $PSCmdlet.WriteError((New-Object Management.Automation.ErrorRecord(
+                (New-Object InvalidOperationException("$($checklist.Name) has no SCAP content for Windows.")), 'NoScapContent', 'ObjectNotFound', $checklist)))
+            return
+        }
         Write-Verbose "Downloading $($resource.Location)"
-        $cache.Download($checklist, $resource)
+        try { $cache.Download($checklist, $resource) }
+        catch {
+            $inner = if ($_.Exception.InnerException) { $_.Exception.InnerException } else { $_.Exception }
+            $PSCmdlet.WriteError((New-Object Management.Automation.ErrorRecord(
+                (New-Object InvalidOperationException("Could not download $($checklist.Name): $($inner.Message)", $inner)), 'DownloadFailed', 'ConnectionError', $checklist)))
+        }
     }
 }
 

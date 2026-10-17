@@ -22,7 +22,7 @@ Describe 'NcpClient' {
         $http = New-Object PowerScapTests.FakeTransport
         $http.Map('search/results', [IO.File]::ReadAllText($fixture))
         $list = (New-Object PowerScap.Engine.Ncp.NcpClient($http)).Search('', [int[]]@(29))
-        $list.Count | Should Be 7
+        $list.Count | Should Be 8
         $w = $list | Where-Object { $_.Id -eq 1028 }
         $w.Name | Should Be 'Microsoft Windows 11 STIG'
         $w.Targets[0] | Should Be 'Microsoft Windows 11'

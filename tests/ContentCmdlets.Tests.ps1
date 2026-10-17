@@ -31,6 +31,21 @@ Describe 'Content cmdlets' {
         @(Get-PowerScapBenchmark -CacheRoot $cacheRoot).Count | Should Be 1
     }
 
+    It 'keeps going when one download fails, and reports it' {
+        $http = New-Object PowerScapTests.FakeTransport
+        $http.Map('search/results', $fixture)
+        $http.MapFile('Google_Chrome', (Join-Path $work 'mini.zip'))
+        $http.Fail('MS_Edge', 'HTTP 404 Not Found')
+        Set-Transport $http
+        $list = @(Find-PowerScapBenchmark | Where-Object { $_.Id -in 986, 483 } | Sort-Object Id -Descending)   # Edge (fails) first
+        $saved = @($list | Save-PowerScapBenchmark -CacheRoot (Join-Path $work 'cache2') -ErrorVariable failures -ErrorAction SilentlyContinue)
+        $saved.Count | Should Be 1
+        $saved[0].ChecklistId | Should Be 483
+        $reported = @($failures | Where-Object { $_.FullyQualifiedErrorId -like 'DownloadFailed*' })
+        $reported.Count | Should Be 1
+        "$($reported[0])" | Should Match 'Microsoft Edge STIG.*404'
+    }
+
     It 'lists cached benchmarks offline' {
         $http = New-Object PowerScapTests.FakeTransport
         $http.Fail('http', 'offline')
