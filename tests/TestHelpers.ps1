@@ -35,6 +35,30 @@ namespace PowerScapTests
 '@
 }
 
+function New-OvalDocument([string]$Objects, [string]$States = '', [string]$Variables = '', [string]$Tests = '', [string]$Definitions = '') {
+    $xml = @"
+<oval_definitions xmlns="http://oval.mitre.org/XMLSchema/oval-definitions-5"
+    xmlns:oval="http://oval.mitre.org/XMLSchema/oval-common-5"
+    xmlns:win="http://oval.mitre.org/XMLSchema/oval-definitions-5#windows"
+    xmlns:ind="http://oval.mitre.org/XMLSchema/oval-definitions-5#independent"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <generator><oval:schema_version>5.11.2</oval:schema_version><oval:timestamp>2026-10-16T00:00:00</oval:timestamp></generator>
+  <definitions>$Definitions</definitions><tests>$Tests</tests><objects>$Objects</objects><states>$States</states><variables>$Variables</variables>
+</oval_definitions>
+"@
+    $doc = New-Object System.Xml.XmlDocument
+    $doc.LoadXml($xml)
+    $doc
+}
+
+# Context with the real (default) collectors and variable resolution.
+function New-DefaultContext([string]$Objects, [string]$States = '', [string]$Variables = '') {
+    $doc = New-OvalDocument -Objects $Objects -States $States -Variables $Variables
+    $ctx = New-Object PowerScap.Engine.Oval.OvalContext($doc, [PowerScap.Engine.Oval.CollectorRegistry]::CreateDefault())
+    $ctx.Variables = New-Object PowerScap.Engine.Oval.VariableResolver($ctx, $null)
+    $ctx
+}
+
 function New-TestContext([string]$Path) {
     $doc = [PowerScap.Engine.Content.ScapContentLoader]::LoadXml($Path)
     $reg = New-Object PowerScap.Engine.Oval.CollectorRegistry

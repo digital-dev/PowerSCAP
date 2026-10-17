@@ -32,6 +32,10 @@ namespace PowerScap.Engine.Oval
         public static CollectorRegistry CreateDefault()
         {
             var r = new CollectorRegistry();
+            r.Register(new RegistryCollector());
+            r.Register(new FamilyCollector());
+            r.Register(new EnvironmentVariable58Collector());
+            r.Register(new VariableCollector());
             return r;
         }
     }
