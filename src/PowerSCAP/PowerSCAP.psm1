@@ -4,7 +4,7 @@ $script:EngineSourceRoot = Join-Path $PSScriptRoot 'Engine'
 $script:EngineReferences = @(
     'System.Xml', 'System.Xml.Linq', 'System.Management',
     'System.DirectoryServices.AccountManagement', 'System.Security', 'System.Core',
-    'System.IO.Compression', 'System.IO.Compression.FileSystem'
+    'System.IO.Compression', 'System.IO.Compression.FileSystem', 'System.Numerics'
 )
 
 function Get-PowerScapBinDirectory {
