@@ -73,12 +73,9 @@ namespace PowerScap.Engine.Oval
             }
             catch (XmlException ex)
             {
-                var bad = new OvalItem(ctx.NextItemId(), ItemType);
-                AddLocation(bad, hit);
-                bad.Status = ItemStatus.Error;
-                bad.Messages.Add("Invalid XML: " + ex.Message);
-                result.Items.Add(bad);
-                result.Flag = CollectedFlag.Error;
+                // A file that is not an XML document has no XML content to collect. This matches SCC, which
+                // passes the .NET rules on hosts with binary servicing deltas (WinSxS\...\r\*.exe.config).
+                result.Messages.Add("Skipped " + hit.FullPath + ": not an XML document (" + ex.Message + ")");
                 return;
             }
 

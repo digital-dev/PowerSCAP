@@ -12,6 +12,8 @@ Describe 'File collectors' {
     Set-Content "$root\app.exe.config" -Encoding ASCII -Value '<configuration><runtime><loadFromRemoteSources enabled="true"/></runtime></configuration>'
     Set-Content "$root\sub\deeper\b.exe.config" -Encoding ASCII -Value '<configuration/>'
     Set-Content "$root\hash.bin" -Value 'abc' -NoNewline -Encoding ASCII
+    # A Windows servicing reverse delta, like WinSxS r-folder *.exe.config files: binary, not XML.
+    [IO.File]::WriteAllBytes("$root\sub\delta.exe.config", [byte[]](0x2E, 0xD0, 0xD8, 0xA5, 0x50, 0x41, 0x33, 0x31, 0x01, 0x02))
 
     $r = X $root
     $rx = X ([regex]::Escape($root))
@@ -22,6 +24,7 @@ Describe 'File collectors' {
 <win:file_object id="oval:t:obj:configs_pattern" version="1"><win:path operation="pattern match">^$rx(\\.*)?$</win:path><win:filename operation="pattern match">\.exe\.config$</win:filename></win:file_object>
 <ind:textfilecontent54_object id="oval:t:obj:text" version="1"><ind:filepath>$r\settings.txt</ind:filepath><ind:pattern operation="pattern match">^Setting=(\d+)$</ind:pattern><ind:instance datatype="int" operation="greater than or equal">1</ind:instance></ind:textfilecontent54_object>
 <ind:xmlfilecontent_object id="oval:t:obj:xml" version="1"><ind:filepath>$r\app.exe.config</ind:filepath><ind:xpath>/configuration/runtime/loadFromRemoteSources/@enabled</ind:xpath></ind:xmlfilecontent_object>
+<ind:xmlfilecontent_object id="oval:t:obj:xmlall" version="1"><ind:behaviors recurse_direction="down" max_depth="-1"/><ind:path>$r</ind:path><ind:filename operation="pattern match">\.exe\.config$</ind:filename><ind:xpath>count(/configuration)</ind:xpath></ind:xmlfilecontent_object>
 <ind:filehash58_object id="oval:t:obj:hash" version="1"><ind:filepath>$r\hash.bin</ind:filepath><ind:hash_type>SHA-256</ind:hash_type></ind:filehash58_object>
 <win:wmi57_object id="oval:t:obj:wmi" version="1"><win:namespace>root\cimv2</win:namespace><win:wql>SELECT Caption FROM Win32_OperatingSystem</win:wql></win:wmi57_object>
 "@
@@ -41,11 +44,11 @@ Describe 'File collectors' {
 
     It 'recurses down from a path to find files by pattern' {
         $names = @((C 'oval:t:obj:configs').Items | ForEach-Object { $_.Get('filename')[0].Value }) | Sort-Object
-        $names -join ',' | Should Be 'app.exe.config,b.exe.config'
+        $names -join ',' | Should Be 'app.exe.config,b.exe.config,delta.exe.config'
     }
 
     It 'matches directory paths by pattern' {
-        (C 'oval:t:obj:configs_pattern').Items.Count | Should Be 2
+        (C 'oval:t:obj:configs_pattern').Items.Count | Should Be 3
     }
 
     It 'textfilecontent54 returns one item per match with subexpressions' {
@@ -57,6 +60,13 @@ Describe 'File collectors' {
 
     It 'xmlfilecontent evaluates the XPath' {
         (C 'oval:t:obj:xml').Items[0].Get('value_of')[0].Value | Should Be 'true'
+    }
+
+    It 'xmlfilecontent skips files that are not XML (no item, object not in error)' {
+        $o = C 'oval:t:obj:xmlall'
+        $o.Flag.ToString() | Should Be 'Complete'
+        @($o.Items | ForEach-Object { $_.Get('filename')[0].Value } | Sort-Object) -join ',' | Should Be 'app.exe.config,b.exe.config'
+        ($o.Messages -join ' ') | Should Match 'delta\.exe\.config'
     }
 
     It 'filehash58 computes SHA-256' {
