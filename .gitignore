@@ -6,3 +6,6 @@
 /results/
 /out/
 *.log
+
+# Downloaded SCAP test content
+/tests/content/

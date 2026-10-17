@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ds:data-stream-collection xmlns:ds="http://scap.nist.gov/schema/scap/source/1.2"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:cat="urn:oasis:names:tc:entity:xmlns:xml:catalog"
+    id="scap_test_collection_mini" schematron-version="1.3">
+  <ds:data-stream id="scap_test_datastream_mini" scap-version="1.3" use-case="CONFIGURATION" timestamp="2026-10-16T00:00:00">
+    <ds:checklists>
+      <ds:component-ref id="scap_test_cref_xccdf" xlink:href="#scap_test_comp_xccdf">
+        <cat:catalog>
+          <cat:uri name="oval.xml" uri="#scap_test_cref_oval"/>
+        </cat:catalog>
+      </ds:component-ref>
+    </ds:checklists>
+    <ds:checks>
+      <ds:component-ref id="scap_test_cref_oval" xlink:href="#scap_test_comp_oval"/>
+    </ds:checks>
+  </ds:data-stream>
+
+  <ds:component id="scap_test_comp_xccdf" timestamp="2026-10-16T00:00:00">
+    <Benchmark xmlns="http://checklists.nist.gov/xccdf/1.2" id="xccdf_test_benchmark_mini" resolved="1" xml:lang="en">
+      <status>accepted</status>
+      <title>Mini test benchmark</title>
+      <version>1.0</version>
+      <Profile id="xccdf_test_profile_p1">
+        <title>Profile 1</title>
+        <select idref="xccdf_test_rule_r1" selected="true"/>
+        <select idref="xccdf_test_rule_r2" selected="true"/>
+      </Profile>
+      <Group id="xccdf_test_group_g1">
+        <title>Group 1</title>
+        <Rule id="xccdf_test_rule_r1" selected="false" severity="medium" weight="10.0">
+          <title>Family is windows</title>
+          <check system="http://oval.mitre.org/XMLSchema/oval-definitions-5">
+            <check-content-ref href="oval.xml" name="oval:test:def:1"/>
+          </check>
+        </Rule>
+        <Rule id="xccdf_test_rule_r2" selected="false" severity="high" weight="10.0">
+          <title>Family is not windows</title>
+          <check system="http://oval.mitre.org/XMLSchema/oval-definitions-5">
+            <check-content-ref href="oval.xml" name="oval:test:def:2"/>
+          </check>
+        </Rule>
+      </Group>
+    </Benchmark>
+  </ds:component>
+
+  <ds:component id="scap_test_comp_oval" timestamp="2026-10-16T00:00:00">
+    <oval_definitions xmlns="http://oval.mitre.org/XMLSchema/oval-definitions-5"
+        xmlns:oval="http://oval.mitre.org/XMLSchema/oval-common-5"
+        xmlns:ind="http://oval.mitre.org/XMLSchema/oval-definitions-5#independent">
+      <generator>
+        <oval:schema_version>5.11.2</oval:schema_version>
+        <oval:timestamp>2026-10-16T00:00:00</oval:timestamp>
+      </generator>
+      <definitions>
+        <definition id="oval:test:def:1" version="1" class="compliance">
+          <metadata><title>Family is windows</title><description>d</description></metadata>
+          <criteria><criterion test_ref="oval:test:tst:1"/></criteria>
+        </definition>
+        <definition id="oval:test:def:2" version="1" class="compliance">
+          <metadata><title>Family is not windows</title><description>d</description></metadata>
+          <criteria negate="true"><criterion test_ref="oval:test:tst:1"/></criteria>
+        </definition>
+      </definitions>
+      <tests>
+        <ind:family_test id="oval:test:tst:1" version="1" check="all" check_existence="at_least_one_exists" comment="family">
+          <ind:object object_ref="oval:test:obj:1"/>
+          <ind:state state_ref="oval:test:ste:1"/>
+        </ind:family_test>
+      </tests>
+      <objects>
+        <ind:family_object id="oval:test:obj:1" version="1"/>
+      </objects>
+      <states>
+        <ind:family_state id="oval:test:ste:1" version="1">
+          <ind:family>windows</ind:family>
+        </ind:family_state>
+      </states>
+    </oval_definitions>
+  </ds:component>
+</ds:data-stream-collection>
