@@ -28,6 +28,14 @@ namespace PowerScap.Engine.Oval
 
         public IEnumerable<string> ObjectTypes { get { return collectors.Keys; } }
 
+        /// <summary>Directory listings shared by every file-based collector in this scan.</summary>
+        public FileSystemCache Files { get { return files; } }
+        readonly FileSystemCache files = new FileSystemCache();
+
+        /// <summary>Registry subkey listings shared by every registry_object in this scan.</summary>
+        public RegistryTreeCache RegistryTree { get { return registryTree; } }
+        readonly RegistryTreeCache registryTree = new RegistryTreeCache();
+
         /// <summary>All built-in Windows and independent collectors. Collector tasks add theirs here.</summary>
         public static CollectorRegistry CreateDefault()
         {

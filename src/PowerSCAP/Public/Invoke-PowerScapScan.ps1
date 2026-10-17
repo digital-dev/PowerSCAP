@@ -12,6 +12,9 @@ function Invoke-PowerScapScan {
         Folder for the results file <host>_<benchmark>_<yyyyMMdd_HHmmss>_XCCDF-Results.xml.
     .PARAMETER AllowInvalidSignature
         Scans content whose XML signature does not verify. The override is recorded in the results.
+    .PARAMETER Collectors
+        Collector set to reuse across scans (its folder and registry listings are shared). Benchmarks piped
+        into one call share a set automatically.
     .PARAMETER AllowUnelevated
         Runs without administrator rights. Checks that need elevation will report errors; intended for testing.
     .EXAMPLE
@@ -28,6 +31,7 @@ function Invoke-PowerScapScan {
         [Parameter(Mandatory)][string]$OutputPath,
         [switch]$PassThru,
         [switch]$AllowInvalidSignature,
+        [PowerScap.Engine.Oval.CollectorRegistry]$Collectors,
         [switch]$AllowUnelevated
     )
 
@@ -38,6 +42,8 @@ function Invoke-PowerScapScan {
             throw 'PowerSCAP must run elevated.'
         }
         $requestedProfile = $ProfileId
+        # One collector set per call: each folder and registry key is read once, however many benchmarks need it.
+        if (-not $Collectors) { $Collectors = [PowerScap.Engine.Oval.CollectorRegistry]::CreateDefault() }
     }
 
     process {
@@ -61,8 +67,7 @@ function Invoke-PowerScapScan {
             if ($first) { $ProfileId = $first.GetAttribute('id') }
         }
         $profile = [PowerScap.Engine.Xccdf.ProfileResolver]::Resolve($content, $ProfileId)
-        $collectors = [PowerScap.Engine.Oval.CollectorRegistry]::CreateDefault()
-        $results = [PowerScap.Engine.Xccdf.RuleEvaluator]::Evaluate($content, $profile, $collectors, $null)
+        $results = [PowerScap.Engine.Xccdf.RuleEvaluator]::Evaluate($content, $profile, $Collectors, $null)
         $scores = [PowerScap.Engine.Xccdf.Scoring]::Compute($profile, $results)
         $target = [PowerScap.Engine.Xccdf.TargetInfo]::Collect()
 

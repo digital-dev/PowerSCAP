@@ -40,4 +40,32 @@ Describe 'OvalOps.PatternMatch' {
         [PowerScap.Engine.Oval.OvalOps]::PatternMatch('ABC', '^abc$') | Should Be $false
         [PowerScap.Engine.Oval.OvalOps]::PatternMatch('ABC', '(?i)^abc$') | Should Be $true
     }
+
+    It 'drops a leading .* from each top-level alternative for yes/no matching' {
+        [PowerScap.Engine.Oval.OvalOps]::SearchForm('.*\.exe\.config$|v4\.0\.30319\\Config\\machine.config') | Should Be '\.exe\.config$|v4\.0\.30319\\Config\\machine.config'
+        [PowerScap.Engine.Oval.OvalOps]::SearchForm('.*?foo') | Should Be 'foo'
+        [PowerScap.Engine.Oval.OvalOps]::SearchForm('(.*foo|bar)') | Should Be '(.*foo|bar)'
+        [PowerScap.Engine.Oval.OvalOps]::SearchForm('[.*]x|\.*y') | Should Be '[.*]x|\.*y'
+        [PowerScap.Engine.Oval.OvalOps]::SearchForm('.*') | Should Be ''
+    }
+
+    It 'gives the same answers with and without the leading .*' {
+        $cases = @(
+            @('C:\Program Files\App\app.exe.config', '.*\.exe\.config$'),
+            @('C:\Windows\x.exe.config.bak', '.*\.exe\.config$'),
+            @('C:\Windows\Microsoft.NET\Framework64\v4.0.30319\Config\machine.config', '.*\.exe\.config$|v4\.0\.30319\\Config\\machine.config'),
+            @("line1`nline2 tail", '.*tail$'),
+            @('', '.*')
+        )
+        foreach ($c in $cases) {
+            [PowerScap.Engine.Oval.OvalOps]::PatternMatch($c[0], $c[1]) | Should Be ([regex]::IsMatch($c[0], $c[1]))
+        }
+    }
+
+    It 'matches a leading-.* pattern against many long paths quickly' {
+        $path = 'C:\' + ('abcdefghij\' * 25) + 'file.dll'
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        for ($i = 0; $i -lt 20000; $i++) { [PowerScap.Engine.Oval.OvalOps]::PatternMatch($path, '.*\.exe\.config$|v4\.0\.30319\\Config\\machine.config') | Out-Null }
+        $sw.Elapsed.TotalSeconds | Should BeLessThan 3
+    }
 }

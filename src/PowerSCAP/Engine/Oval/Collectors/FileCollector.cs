@@ -15,7 +15,7 @@ namespace PowerScap.Engine.Oval
         public CollectedObject Collect(ObjectSpec spec, OvalContext ctx)
         {
             var result = new CollectedObject(spec.ObjectId);
-            var hits = FileSearch.Find(spec, result.Messages);
+            var hits = FileSearch.Find(spec, ctx.Collectors.Files, result.Messages);
             bool view32 = !CollectorUtil.Is64BitView(spec);
             foreach (var hit in hits)
             {

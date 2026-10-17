@@ -25,7 +25,8 @@ namespace PowerScap.Engine.Oval
                 return c.Values.All(v => !string.Equals(v, candidate, StringComparison.OrdinalIgnoreCase));
             if (c.Operation == "pattern match")
             {
-                var results = c.Values.Select(v => OvalResultText.FromBool(Regex.IsMatch(candidate, v, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))).ToList();
+                if (c.Values.Count == 1 && c.VarCheck != "none satisfy") return OvalOps.ToRegexIgnoreCase(c.Values[0]).IsMatch(candidate);
+                var results = c.Values.Select(v => OvalResultText.FromBool(OvalOps.ToRegexIgnoreCase(v).IsMatch(candidate))).ToList();
                 return OvalLogic.Check(c.VarCheck, results) == OvalResult.True;
             }
             return Satisfies(c, candidate);

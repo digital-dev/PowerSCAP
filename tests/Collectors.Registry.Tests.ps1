@@ -32,6 +32,23 @@ Describe 'RegistryCollector' {
     $ctx = New-DefaultContext -Objects $objects -Variables $variables
     function C($id) { [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx.FindObject($id), $ctx) }
 
+    It 'reads each key once per scan, however many pattern objects walk it' {
+        $ctx2 = New-DefaultContext -Objects $objects -Variables $variables
+        [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:pattern_subs'), $ctx2) | Out-Null
+        $read = $ctx2.Collectors.RegistryTree.KeysRead
+        $read -gt 0 | Should Be $true
+        [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:pattern_none'), $ctx2) | Out-Null
+        $ctx2.Collectors.RegistryTree.KeysRead | Should Be $read
+    }
+
+    It 'enumerates HKEY_LOCAL_MACHINE for a key pattern' {
+        $ctx2 = New-DefaultContext -Objects '<win:registry_object id="oval:t:obj:hklm" version="1"><win:hive>HKEY_LOCAL_MACHINE</win:hive><win:key operation="pattern match">^SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion$</win:key><win:name xsi:nil="true"/></win:registry_object>'
+        $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:hklm'), $ctx2)
+        $o.Flag.ToString() | Should Be 'Complete'
+        $o.Items.Count | Should Be 1
+        $o.Items[0].Get('key')[0].Value | Should Be 'SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+    }
+
     It 'reads a DWORD as reg_dword with an int value' {
         $o = C 'oval:t:obj:dw'
         $o.Items.Count | Should Be 1

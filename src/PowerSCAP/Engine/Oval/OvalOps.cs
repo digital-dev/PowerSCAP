@@ -278,9 +278,67 @@ namespace PowerScap.Engine.Oval
             }
         }
 
+        static readonly Dictionary<string, Regex> IgnoreCaseCache = new Dictionary<string, Regex>();
+        static readonly Dictionary<string, Regex> SearchCache = new Dictionary<string, Regex>();
+
+        /// <summary>Case-insensitive yes/no matcher for Windows names (registry keys, files, accounts).</summary>
+        public static Regex ToRegexIgnoreCase(string perlPattern)
+        {
+            lock (IgnoreCaseCache)
+            {
+                Regex r;
+                if (IgnoreCaseCache.TryGetValue(perlPattern, out r)) return r;
+                r = new Regex(SearchForm(ToRegex(perlPattern).ToString()), RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+                IgnoreCaseCache[perlPattern] = r;
+                return r;
+            }
+        }
+
+        /// <summary>Yes/no pattern match (OVAL "pattern match" operation).</summary>
         public static bool PatternMatch(string input, string perlPattern)
         {
-            return ToRegex(perlPattern).IsMatch(input ?? string.Empty);
+            Regex r;
+            lock (SearchCache)
+            {
+                if (!SearchCache.TryGetValue(perlPattern, out r))
+                {
+                    r = new Regex(SearchForm(ToRegex(perlPattern).ToString()), RegexOptions.CultureInvariant);
+                    SearchCache[perlPattern] = r;
+                }
+            }
+            return r.IsMatch(input ?? string.Empty);
+        }
+
+        /// <summary>
+        /// The pattern with a leading ".*" (or ".*?") removed from each top-level alternative. For a yes/no
+        /// unanchored search the two are equivalent (".*" may match nothing), but .NET Framework's backtracking
+        /// makes the leading ".*" quadratic per input: content like ".*\.exe\.config$" tested against every
+        /// file path on a drive took minutes. Only for IsMatch; never where match text or groups are used.
+        /// </summary>
+        public static string SearchForm(string pattern)
+        {
+            var alternatives = new List<string>();
+            int depth = 0, start = 0;
+            bool inClass = false;
+            for (int i = 0; i < pattern.Length; i++)
+            {
+                char c = pattern[i];
+                if (c == '\\') { i++; continue; }
+                if (inClass) { if (c == ']') inClass = false; continue; }
+                if (c == '[') inClass = true;
+                else if (c == '(') depth++;
+                else if (c == ')') depth--;
+                else if (c == '|' && depth == 0) { alternatives.Add(pattern.Substring(start, i - start)); start = i + 1; }
+            }
+            alternatives.Add(pattern.Substring(start));
+            for (int a = 0; a < alternatives.Count; a++)
+            {
+                string alt = alternatives[a];
+                if (alt.StartsWith(".*?")) alt = alt.Substring(3);
+                else if (alt.StartsWith(".*") && (alt.Length == 2 || "+{".IndexOf(alt[2]) < 0)) alt = alt.Substring(2);
+                alternatives[a] = alt;
+            }
+            return string.Join("|", alternatives);
         }
     }
 }

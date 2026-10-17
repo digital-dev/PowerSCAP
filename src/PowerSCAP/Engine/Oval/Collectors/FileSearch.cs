@@ -18,7 +18,7 @@ namespace PowerScap.Engine.Oval
     /// </summary>
     public static class FileSearch
     {
-        public static IList<FileHit> Find(ObjectSpec spec, IList<string> messages)
+        public static IList<FileHit> Find(ObjectSpec spec, FileSystemCache fs, IList<string> messages)
         {
             EntityCriterion filepathC, pathC, filenameC;
             spec.Entities.TryGetValue("filepath", out filepathC);
@@ -39,8 +39,8 @@ namespace PowerScap.Engine.Oval
                     }
                     return hits;
                 }
-                foreach (var dir in WalkFromPatterns(filepathC, view32, messages, -1))
-                    foreach (var f in SafeFiles(dir, view32, messages))
+                foreach (var dir in WalkFromPatterns(filepathC, fs, view32, messages, -1))
+                    foreach (var f in SafeFiles(dir, fs, view32, messages))
                     {
                         string full = System.IO.Path.Combine(dir, f);
                         if (CollectorUtil.SatisfiesIgnoreCase(filepathC, full)) hits.Add(new FileHit { Path = dir, FileName = f });
@@ -49,8 +49,8 @@ namespace PowerScap.Engine.Oval
             }
 
             if (pathC == null) return hits;
-            var dirs = MatchDirectories(pathC, view32, messages);
-            dirs = ApplyRecursion(spec, dirs, view32, messages);
+            var dirs = MatchDirectories(pathC, fs, view32, messages);
+            dirs = ApplyRecursion(spec, dirs, fs, view32, messages);
             foreach (var dir in dirs)
             {
                 if (filenameC == null || filenameC.IsNil)
@@ -66,23 +66,23 @@ namespace PowerScap.Engine.Oval
                 }
                 else
                 {
-                    foreach (var f in SafeFiles(dir, view32, messages))
+                    foreach (var f in SafeFiles(dir, fs, view32, messages))
                         if (CollectorUtil.SatisfiesIgnoreCase(filenameC, f)) hits.Add(new FileHit { Path = dir, FileName = f });
                 }
             }
             return hits;
         }
 
-        static List<string> MatchDirectories(EntityCriterion pathC, bool view32, IList<string> messages)
+        static List<string> MatchDirectories(EntityCriterion pathC, FileSystemCache fs, bool view32, IList<string> messages)
         {
             IList<string> literal = CollectorUtil.LiteralValues(pathC);
             if (literal != null)
                 return literal.Where(p => Directory.Exists(Redirect(p, view32))).Select(p => p.TrimEnd('\\').Length == 2 ? p : p.TrimEnd('\\')).ToList();
-            return WalkFromPatterns(pathC, view32, messages, -1).Where(d => CollectorUtil.SatisfiesIgnoreCase(pathC, d)).ToList();
+            return WalkFromPatterns(pathC, fs, view32, messages, -1).Where(d => CollectorUtil.SatisfiesIgnoreCase(pathC, d)).ToList();
         }
 
         /// <summary>All directories beneath the literal prefix of each pattern (all fixed drives when no prefix).</summary>
-        static IEnumerable<string> WalkFromPatterns(EntityCriterion c, bool view32, IList<string> messages, int maxDepth)
+        static IEnumerable<string> WalkFromPatterns(EntityCriterion c, FileSystemCache fs, bool view32, IList<string> messages, int maxDepth)
         {
             var starts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var v in c.Values)
@@ -97,11 +97,14 @@ namespace PowerScap.Engine.Oval
             }
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var s in starts)
-                foreach (var d in Walk(s, maxDepth, view32, messages))
+            {
+                if (maxDepth < 0) fs.Prefetch(Redirect(s.Length > 3 ? s.TrimEnd('\\') : s, view32));
+                foreach (var d in Walk(s, fs, maxDepth, view32, messages))
                     if (seen.Add(d)) yield return d;
+            }
         }
 
-        public static IEnumerable<string> Walk(string start, int maxDepth, bool view32, IList<string> messages)
+        public static IEnumerable<string> Walk(string start, FileSystemCache fs, int maxDepth, bool view32, IList<string> messages)
         {
             var stack = new Stack<KeyValuePair<string, int>>();
             string first = start.Length > 3 ? start.TrimEnd('\\') : start;
@@ -112,12 +115,12 @@ namespace PowerScap.Engine.Oval
                 var cur = stack.Pop();
                 yield return cur.Key;
                 if (maxDepth >= 0 && cur.Value >= maxDepth) continue;
-                foreach (var sub in SafeSubdirectories(cur.Key, view32, messages))
+                foreach (var sub in SafeSubdirectories(cur.Key, fs, view32, messages))
                     stack.Push(new KeyValuePair<string, int>(sub, cur.Value + 1));
             }
         }
 
-        static List<string> ApplyRecursion(ObjectSpec spec, List<string> dirs, bool view32, IList<string> messages)
+        static List<string> ApplyRecursion(ObjectSpec spec, List<string> dirs, FileSystemCache fs, bool view32, IList<string> messages)
         {
             string direction = spec.Behavior("recurse_direction", "none");
             if (direction == "none") return dirs;
@@ -140,42 +143,36 @@ namespace PowerScap.Engine.Oval
                 }
                 else
                 {
-                    foreach (var sub in Walk(d, maxDepth, view32, messages))
+                    // With unlimited depth, a directory already reached from an ancestor has had its whole
+                    // subtree added; walking it again (path ".*" matches every folder) repeats work per ancestor.
+                    if (maxDepth < 0 && seen.Contains(d)) continue;
+                    foreach (var sub in Walk(d, fs, maxDepth, view32, messages))
                         if (seen.Add(sub)) result.Add(sub);
                 }
             }
             return result;
         }
 
-        static IEnumerable<string> SafeSubdirectories(string dir, bool view32, IList<string> messages)
+        static IEnumerable<string> SafeSubdirectories(string dir, FileSystemCache fs, bool view32, IList<string> messages)
         {
-            try
+            var listing = fs.List(Redirect(dir, view32));
+            if (listing.Error != null)
             {
-                var info = new DirectoryInfo(Redirect(dir, view32));
-                return info.GetDirectories()
-                    .Where(d => (d.Attributes & FileAttributes.ReparsePoint) == 0)
-                    .Select(d => System.IO.Path.Combine(dir, d.Name)).ToList();
-            }
-            catch (Exception ex)
-            {
-                if (!(ex is UnauthorizedAccessException || ex is IOException || ex is System.Security.SecurityException)) throw;
-                lock (messages) messages.Add("Skipped unreadable directory " + dir + ": " + ex.Message);
+                lock (messages) messages.Add("Skipped unreadable directory " + dir + ": " + listing.Error);
                 return new string[0];
             }
+            return listing.Directories.Select(d => System.IO.Path.Combine(dir, d));
         }
 
-        public static IList<string> SafeFiles(string dir, bool view32, IList<string> messages)
+        public static IList<string> SafeFiles(string dir, FileSystemCache fs, bool view32, IList<string> messages)
         {
-            try
+            var listing = fs.List(Redirect(dir, view32));
+            if (listing.Error != null)
             {
-                return new DirectoryInfo(Redirect(dir, view32)).GetFiles().Select(f => f.Name).ToList();
-            }
-            catch (Exception ex)
-            {
-                if (!(ex is UnauthorizedAccessException || ex is IOException || ex is System.Security.SecurityException)) throw;
-                lock (messages) messages.Add("Skipped unreadable directory " + dir + ": " + ex.Message);
+                lock (messages) messages.Add("Skipped unreadable directory " + dir + ": " + listing.Error);
                 return new string[0];
             }
+            return listing.Files;
         }
 
         /// <summary>Maps System32 to SysWOW64 for the 32-bit view (File System Redirector semantics).</summary>

@@ -37,7 +37,7 @@ namespace PowerScap.Engine.Oval
             {
                 using (RegistryKey root = RegistryKey.OpenBaseKey(Hives[hiveName], view))
                 {
-                    foreach (var keyPath in FindKeys(root, keyC, result, ref anyError))
+                    foreach (var keyPath in FindKeys(root, view, keyC, ctx.Collectors.RegistryTree, result, ref anyError))
                         CollectValues(root, hiveName, keyPath, nameC, viewText, ctx, result, ref anyError);
                 }
             }
@@ -48,7 +48,7 @@ namespace PowerScap.Engine.Oval
             return result;
         }
 
-        IEnumerable<string> FindKeys(RegistryKey root, EntityCriterion keyC, CollectedObject result, ref bool anyError)
+        IEnumerable<string> FindKeys(RegistryKey root, RegistryView view, EntityCriterion keyC, RegistryTreeCache tree, CollectedObject result, ref bool anyError)
         {
             var found = new List<string>();
             if (keyC == null || keyC.IsNil) { found.Add(null); return found; }
@@ -79,7 +79,15 @@ namespace PowerScap.Engine.Oval
             {
                 string prefix = keyC.Operation == "pattern match" ? CollectorUtil.LiteralPrefix(v) : string.Empty;
                 int cut = prefix.LastIndexOf('\\');
-                starts.Add(cut >= 0 ? prefix.Substring(0, cut) : string.Empty);
+                string start = cut >= 0 ? prefix.Substring(0, cut) : string.Empty;
+                if (start.Length > 0)
+                {
+                    // Use the key's own spelling, so reported paths read as the registry stores them.
+                    try { using (var k = root.OpenSubKey(start, false)) if (k != null) start = KeyPath(root, k); }
+                    catch (SecurityException) { }
+                    catch (UnauthorizedAccessException) { }
+                }
+                starts.Add(start);
             }
             foreach (var start in starts)
             {
@@ -88,25 +96,18 @@ namespace PowerScap.Engine.Oval
                 while (stack.Count > 0)
                 {
                     string path = stack.Pop();
-                    RegistryKey key = null;
-                    try
+                    string error;
+                    var names = tree.Subkeys(root, view, path, out error);
+                    if (error != null)
                     {
-                        key = path.Length == 0 ? root : root.OpenSubKey(path, false);
-                        if (key == null) continue;
-                        if (path.Length > 0 && CollectorUtil.SatisfiesIgnoreCase(keyC, path)) found.Add(KeyPath(root, key));
-                        foreach (var sub in key.GetSubKeyNames())
-                            stack.Push(path.Length == 0 ? sub : path + "\\" + sub);
-                    }
-                    catch (Exception ex)
-                    {
-                        if (!(ex is SecurityException || ex is UnauthorizedAccessException)) throw;
                         // Unreadable branches during pattern enumeration are reported but do not fail the object.
-                        result.Messages.Add("Access is denied: " + root.Name + "\\" + path);
+                        result.Messages.Add(error);
+                        continue;
                     }
-                    finally
-                    {
-                        if (key != null && !ReferenceEquals(key, root)) key.Dispose();
-                    }
+                    if (names == null) continue;
+                    if (path.Length > 0 && CollectorUtil.SatisfiesIgnoreCase(keyC, path)) found.Add(path);
+                    foreach (var sub in names)
+                        stack.Push(path.Length == 0 ? sub : path + "\\" + sub);
                 }
             }
             return found.Distinct(StringComparer.OrdinalIgnoreCase).ToList();

@@ -28,6 +28,7 @@ $pairs = [ordered]@{
     'DotNet_Framework'    = 'MS_Dot_Net_Framework'
 }
 
+$collectors = [PowerScap.Engine.Oval.CollectorRegistry]::CreateDefault()   # shared: each folder/key read once
 $all = foreach ($kv in $pairs.GetEnumerator()) {
     $zip = Get-ChildItem $ContentDir -Filter "*$($kv.Key)*.zip" | Select-Object -First 1
     $ref = Get-ChildItem (Join-Path $SccSession 'Results\SCAP\XML') -Filter "*XCCDF-Results_$($kv.Value)*.xml" | Select-Object -First 1
@@ -37,7 +38,7 @@ $all = foreach ($kv in $pairs.GetEnumerator()) {
     $refProfile = @($refXml.GetElementsByTagName('profile', 'http://checklists.nist.gov/xccdf/1.2'))[-1]
     $profileId = if ($refProfile) { $refProfile.GetAttribute('idref') } else { $null }
     $sw = [Diagnostics.Stopwatch]::StartNew()
-    $scan = Invoke-PowerScapScan -ContentPath $zip.FullName -ProfileId $profileId -OutputPath $OutputPath -PassThru -AllowUnelevated:$AllowUnelevated
+    $scan = Invoke-PowerScapScan -ContentPath $zip.FullName -ProfileId $profileId -OutputPath $OutputPath -PassThru -AllowUnelevated:$AllowUnelevated -Collectors $collectors
     $rows = & $compare -Reference $ref.FullName -Actual $scan.Path 6>$null
     foreach ($r in $rows) {
         [pscustomobject]@{ Benchmark = $kv.Key; RuleId = $r.RuleId; Reference = $r.Reference; Actual = $r.Actual; Match = $r.Match }

@@ -62,6 +62,30 @@ Describe 'File collectors' {
         (C 'oval:t:obj:xml').Items[0].Get('value_of')[0].Value | Should Be 'true'
     }
 
+    It 'reads each directory once per scan, however many objects walk it' {
+        $ctx2 = New-DefaultContext -Objects $objects
+        [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:configs'), $ctx2) | Out-Null
+        $read = $ctx2.Collectors.Files.DirectoriesRead
+        $read | Should Be 3
+        [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:xmlall'), $ctx2) | Out-Null
+        $ctx2.Collectors.Files.DirectoriesRead | Should Be $read
+    }
+
+    It 'path .* with unlimited downward recursion walks each directory once' {
+        # chain\a\b\c\d\e: recursing again from each of the 6 matched folders would list 6+5+4+3+2+1 = 21.
+        $tree = Join-Path $root 'chain'
+        New-Item (Join-Path $tree 'a\b\c\d\e') -ItemType Directory -Force | Out-Null
+        Set-Content (Join-Path $tree 'a\b\c\d\e\x.exe.config') -Value '<configuration/>' -Encoding ASCII
+        $o = '<win:file_object id="oval:t:obj:everywhere" version="1"><win:behaviors recurse_direction="down" max_depth="-1"/><win:path operation="pattern match">^' + (X ([regex]::Escape($tree))) + '.*</win:path><win:filename operation="pattern match">\.exe\.config$</win:filename></win:file_object>'
+        $ctx2 = New-DefaultContext -Objects $o
+        $r = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:everywhere'), $ctx2)
+        @($r.Items | ForEach-Object { $_.Get('filename')[0].Value }) -join ',' | Should Be 'x.exe.config'
+        $walked = @(Get-ChildItem $root -Recurse -Directory).Count + 1
+        # One parallel prefetch pass plus one walk over the tree, then 6 + 6 for the matched chain (not 21 + 6).
+        $ctx2.Collectors.Files.Lookups | Should Not BeGreaterThan (2 * $walked + 6 + 6)
+        Remove-Item $tree -Recurse -Force
+    }
+
     It 'xmlfilecontent skips files that are not XML (no item, object not in error)' {
         $o = C 'oval:t:obj:xmlall'
         $o.Flag.ToString() | Should Be 'Complete'
