@@ -5,7 +5,7 @@ $script:EngineReferences = @(
     'System.Xml', 'System.Xml.Linq', 'System.Management',
     'System.DirectoryServices.AccountManagement', 'System.Security', 'System.Core',
     'System.IO.Compression', 'System.IO.Compression.FileSystem', 'System.Numerics',
-    [psobject].Assembly.Location   # System.Management.Automation, for the cmdlet collector
+    'System.ServiceProcess'
 )
 
 function Get-PowerScapBinDirectory {

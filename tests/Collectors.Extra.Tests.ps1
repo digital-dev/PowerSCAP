@@ -5,11 +5,10 @@ Import-Module (Join-Path $repo 'src\PowerSCAP') -Force
 $mySid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $objects = @"
 <win:wmi_object id="oval:t:obj:wmi" version="1"><win:namespace>root\cimv2</win:namespace><win:wql>SELECT name FROM win32_logicaldisk WHERE drivetype=3</win:wql></win:wmi_object>
-<win:cmdlet_object id="oval:t:obj:cmdlet" version="1"><win:module_name>Microsoft.PowerShell.Management</win:module_name><win:module_id xsi:nil="true"/><win:module_version datatype="version" xsi:nil="true"/><win:verb>Get</win:verb><win:noun>Item</win:noun><win:parameters datatype="record"><field name="path">C:\Windows</field></win:parameters><win:select datatype="record"><field name="property">Name,Attributes</field></win:select></win:cmdlet_object>
-<ind:shellcommand_object id="oval:t:obj:shell" version="1"><ind:shell>cmd</ind:shell><ind:command>echo Alpha - 1: &amp; echo Beta - 2: &amp; echo Alpha - 3:</ind:command><ind:pattern>Alpha - (\d+):</ind:pattern></ind:shellcommand_object>
+<win:cmdlet_object id="oval:t:obj:cmdlet" version="1"><win:module_name>CimCmdlets</win:module_name><win:module_id xsi:nil="true"/><win:module_version datatype="version" xsi:nil="true"/><win:verb>Get</win:verb><win:noun>CimInstance</win:noun><win:parameters datatype="record"><field name="classname">Win32_OperatingSystem</field></win:parameters><win:select datatype="record"><field name="property">Caption,Primary</field></win:select></win:cmdlet_object>
+<win:cmdlet_object id="oval:t:obj:cmdlet_unknown" version="1"><win:module_name>Microsoft.PowerShell.Management</win:module_name><win:module_id xsi:nil="true"/><win:module_version datatype="version" xsi:nil="true"/><win:verb>Get</win:verb><win:noun>Item</win:noun><win:parameters datatype="record"><field name="path">C:\Windows</field></win:parameters><win:select datatype="record"><field name="property">Name</field></win:select></win:cmdlet_object>
 <win:ntuser_object id="oval:t:obj:ntuser" version="1"><win:key>Software\PowerSCAPTest</win:key><win:name>NtValue</win:name></win:ntuser_object>
 <win:userright_object id="oval:t:obj:right" version="1"><win:userright>SE_DEBUG_NAME</win:userright></win:userright_object>
-<ind:shellcommand_object id="oval:t:obj:lines" version="1"><ind:shell>cmd</ind:shell><ind:command>echo A: &amp; echo. &amp; echo B:</ind:command><ind:pattern>.*</ind:pattern></ind:shellcommand_object>
 <win:wmi57_object id="oval:t:obj:wmi57_none" version="1"><win:namespace>root\cimv2</win:namespace><win:wql>SELECT Name FROM Win32_Service WHERE Name='NoSuchServicePowerSCAP'</win:wql></win:wmi57_object>
 <win:wmi_object id="oval:t:obj:wmi_none" version="1"><win:namespace>root\cimv2</win:namespace><win:wql>SELECT Name FROM Win32_Service WHERE Name='NoSuchServicePowerSCAP'</win:wql></win:wmi_object>
 <win:passwordpolicy_object id="oval:t:obj:pw" version="1"/>
@@ -26,27 +25,23 @@ Describe 'Extra collectors' {
         $values -contains $env:SystemDrive | Should Be $true
     }
 
-    It 'cmdlet_object runs the cmdlet and records selected properties' {
+    It 'cmdlet_object runs the cmdlet natively and records selected properties with module identity' {
         $o = C 'oval:t:obj:cmdlet'
         $o.Items.Count | Should Be 1
-        $value = $o.Items[0].Get('value')[0]
+        $item = $o.Items[0]
+        $item.Get('module_name')[0].Value | Should Be 'CimCmdlets'
+        $item.Get('module_id')[0].Value | Should Be '{fb6cc51d-c096-4b38-b78d-0fed6277096a}'
+        $value = $item.Get('value')[0]
         $value.Datatype | Should Be 'record'
-        ($value.Fields | Where-Object { $_.Name -eq 'name' }).Value | Should Be 'Windows'
+        ($value.Fields | ForEach-Object { $_.Name }) -join ',' | Should Be 'caption,primary'
+        ($value.Fields | Where-Object { $_.Name -eq 'caption' }).Value | Should Be (Get-CimInstance Win32_OperatingSystem).Caption
+        ($value.Fields | Where-Object { $_.Name -eq 'primary' }).Value | Should Be 'True'
     }
 
-    It 'shellcommand_object returns one item per command with one stdout_line per matching line' {
-        $o = C 'oval:t:obj:shell'
-        $o.Items.Count | Should Be 1
-        @($o.Items[0].Get('stdout_line')).Count | Should Be 2
-        ($o.Items[0].Get('subexpression') | ForEach-Object { $_.Value }) -join ',' | Should Be '1,3'
-        $o.Items[0].Get('exit_status')[0].Value | Should Be '0'
-    }
-
-    It 'shellcommand with no matching output still yields the item, without stdout_line' {
-        $ctx2 = New-DefaultContext -Objects '<ind:shellcommand_object id="oval:t:obj:quiet" version="1"><ind:shell>cmd</ind:shell><ind:command>echo nothing</ind:command><ind:pattern>^zzz</ind:pattern></ind:shellcommand_object>'
-        $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:quiet'), $ctx2)
-        $o.Items.Count | Should Be 1
-        @($o.Items[0].Get('stdout_line')).Count | Should Be 0
+    It 'cmdlet_object without a native implementation is not collected (PowerShell is never run)' {
+        $o = C 'oval:t:obj:cmdlet_unknown'
+        $o.Flag.ToString() | Should Be 'NotCollected'
+        $o.Items.Count | Should Be 0
     }
 
     It 'ntuser_object reads the value from the current user hive' {
@@ -54,26 +49,6 @@ Describe 'Extra collectors' {
         $item | Should Not BeNullOrEmpty
         $item.Get('value')[0].Value | Should Be '7'
         $item.Get('logged_on')[0].Value | Should Be '1'
-    }
-
-    It 'shellcommand keeps blank lines but not the trailing newline' {
-        @((C 'oval:t:obj:lines').Items[0].Get('stdout_line')).Count | Should Be 3
-    }
-
-    It 'powershell shell commands run in-process (no child powershell.exe)' {
-        $ctx2 = New-DefaultContext -Objects '<ind:shellcommand_object id="oval:t:obj:pid" version="1"><ind:shell>powershell</ind:shell><ind:command>"pid=$PID"</ind:command><ind:pattern>^pid=(\d+)$</ind:pattern></ind:shellcommand_object>'
-        $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:pid'), $ctx2)
-        $o.Items[0].Get('subexpression')[0].Value | Should Be "$PID"
-    }
-
-    It 'powershell shell commands report native exit codes and errors' {
-        $objs = '<ind:shellcommand_object id="oval:t:obj:exit" version="1"><ind:shell>powershell</ind:shell><ind:command>cmd /c exit 3</ind:command><ind:pattern>.*</ind:pattern></ind:shellcommand_object>' +
-                '<ind:shellcommand_object id="oval:t:obj:err" version="1"><ind:shell>powershell</ind:shell><ind:command>Write-Error "boom"</ind:command><ind:pattern>.*</ind:pattern></ind:shellcommand_object>'
-        $ctx2 = New-DefaultContext -Objects $objs
-        ([PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:exit'), $ctx2)).Items[0].Get('exit_status')[0].Value | Should Be '3'
-        $e = ([PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:err'), $ctx2)).Items[0]
-        $e.Get('exit_status')[0].Value | Should Be '1'
-        ($e.Get('stderr_line') | ForEach-Object { $_.Value }) -join ' ' | Should Match 'boom'
     }
 
     It 'wmi57 with no rows is DoesNotExist' {

@@ -9,3 +9,11 @@ Describe 'Content inventory gate' -Tag Content {
         $unsupported -join ', ' | Should Be ''
     }
 }
+
+Describe 'Command inventory gate' -Tag Content {
+    It 'implements every shell command and cmdlet in the test content natively (no script execution)' {
+        $unsupported = @(& (Join-Path $repo 'tools\Get-CommandInventory.ps1') -Path $content | Where-Object { -not $_.Supported } |
+            ForEach-Object { "$($_.Kind) $($_.Command)" } | Sort-Object -Unique)
+        $unsupported -join "`n" | Should Be ''
+    }
+}
