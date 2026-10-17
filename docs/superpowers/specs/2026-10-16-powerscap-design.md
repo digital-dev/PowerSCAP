@@ -96,13 +96,14 @@ The guiding principle, in the owner's words: **SCAP is a framework, black and wh
   - The required set is fixed by an inventory of the actual content, which is the first build step. Known in use: `registry`, `file`, `wmi57`, `xmlfilecontent`, `wuaupdatesearcher`.
   - Expected from DISA Windows content: `accesstoken`, `auditeventpolicysubcategories`, `lockoutpolicy`, `passwordpolicy`, `sid`/`sid_sid`, `user`/`user_sid55`, `group`/`group_sid`, `service`, `fileeffectiverights53`, `regkeyeffectiverights53`, `textfilecontent54`, `family`, `variable`, `environmentvariable58`, `sharedresource`, `filehash58`.
   - Collectors run with system-wide enumeration where the spec requires (file search patterns, registry recursion).
+- **No script execution during scans ★:** content `shellcommand_object` and `cmdlet_object` checks are answered by native C# that reads the same sources (registry ACLs, WMI/CIM, event logs, certificate stores, UEFI variables) and reproduces the shell's output. Plain programs the content names (icacls, bcdedit, w32tm, caspol) start directly, with no shell. PowerShell and cmd are never started or hosted for a scan, because Avast's AMSI provider flags it and an antivirus exclusion for powershell.exe is not acceptable. A command with no native implementation is reported as not collected; `tools/Get-CommandInventory.ps1` and a content gate test list any.
 - **Collector failures:** a collector that is denied access returns OVAL `error` with a message. Example: SCC hit "Access is denied" on the firewall policy keys because of Avast. A collector failure never crashes the scan.
 - **Windows Update check:** support the offline `wsusscn2.cab` method and the online WUA method, matching how the content defines `wuaupdatesearcher`.
 
 ### 6.4 Three result layers ★
 1. **SCAP:** exactly what the content automates, evaluated per §6.3. Manual rules stay `notchecked`, as in any validated scanner. This layer alone produces the SCAP scores and the standard result files.
 2. **Automated manual checks:**
-   - A PowerSCAP library of PowerShell check scripts, each keyed to a STIG rule (stable ID: STIG ID plus rule version), for rules the content leaves manual but a script can decide.
+   - A PowerSCAP library of native (C#) checks, each keyed to a STIG rule (stable ID: STIG ID plus rule version), for rules the content leaves manual but a script can decide.
    - Examples: scanning `*.exe.config` for `loadFromRemoteSources`, BitLocker protectors and PIN, Secure Boot state, certificate stores, Wi-Fi Direct adapters.
    - Results carry a "PowerSCAP automated" label and feed a separate **STIG completeness** view and score. They never alter the SCAP score.
 3. **Guided questions:**

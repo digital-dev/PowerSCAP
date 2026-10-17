@@ -1,0 +1,505 @@
+{
+ "response": [
+  {
+   "grid": {
+    "resultsPerPage": 8,
+    "startIndex": 0,
+    "totalResults": 8,
+    "checklists": [
+     {
+      "checklistId": 1028,
+      "name": "Microsoft Windows 11 STIG",
+      "version": "Ver 2, Rel 11",
+      "authority": "Defense Information Systems Agency",
+      "lastModified": "2026-10-06T13:57:42.310",
+      "targets": [
+       "Microsoft Windows 11"
+      ],
+      "resources": [
+       {
+        "checklistResourceId": 19062,
+        "title": "Microsoft Windows 11 STIG for Chef - Ver 1, Rel 3",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_11_V1R3_STIG_Chef.zip",
+        "resourceTypeName": "Standalone XCCDF 1.1.4"
+       },
+       {
+        "checklistResourceId": 19063,
+        "title": "Intune Policy - July 2026",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_Intune_Policy_Package_July_2026.zip",
+        "resourceTypeName": "Intune Policies"
+       },
+       {
+        "checklistResourceId": 19064,
+        "title": "Group Policy Objects (GPOs) - July 2026",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_STIG_GPO_Package_July_2026.zip",
+        "resourceTypeName": "GPOs"
+       },
+       {
+        "checklistResourceId": 19065,
+        "title": "U_MS_Windows_11_V2R10_STIG_SCAP_1-4_Benchmark-enhancedV18-signed.zip",
+        "location": "https://raw.githubusercontent.com/niwc-atlantic/scap-content-library/refs/heads/main/Current/U_MS_Windows_11_V2R10_STIG_SCAP_1-4_Benchmark-enhancedV18-signed.zip",
+        "resourceTypeName": "SCAP 1.4 Content"
+       },
+       {
+        "checklistResourceId": 19066,
+        "title": "SCC 5.15 Windows",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_Windows_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 19067,
+        "title": "Microsoft Windows 11 STIG - Ver 2, Rel 11",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_11_V2R11_STIG.zip",
+        "resourceTypeName": "Standalone XCCDF 1.1.4"
+       },
+       {
+        "checklistResourceId": 19068,
+        "title": "Microsoft Windows 11 STIG SCAP Benchmark - Ver 2, Rel 11",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_11_V2R11_STIG_SCAP_1-3_Benchmark.zip",
+        "resourceTypeName": "SCAP 1.3 Content"
+       }
+      ]
+     },
+     {
+      "checklistId": 807,
+      "name": "Microsoft Windows Defender Antivirus STIG",
+      "version": "Ver 2, Rel 10",
+      "authority": "Defense Information Systems Agency",
+      "lastModified": "2026-10-06T13:29:18.533",
+      "targets": [
+       "Microsoft Windows Defender"
+      ],
+      "resources": [
+       {
+        "checklistResourceId": 19021,
+        "title": "Intune Policy - July 2026",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_Intune_Policy_Package_July_2026.zip",
+        "resourceTypeName": "Intune Policies"
+       },
+       {
+        "checklistResourceId": 19022,
+        "title": "Group Policy Objects (GPOs) - July 2026",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_STIG_GPO_Package_July_2026.zip",
+        "resourceTypeName": "GPOs"
+       },
+       {
+        "checklistResourceId": 19023,
+        "title": "U_MS_Defender_Antivirus_V2R9_STIG_SCAP_1-4_Benchmark-enhancedV15-signed.zip",
+        "location": "https://raw.githubusercontent.com/niwc-atlantic/scap-content-library/refs/heads/main/Current/U_MS_Defender_Antivirus_V2R9_STIG_SCAP_1-4_Benchmark-enhancedV15-signed.zip",
+        "resourceTypeName": "SCAP 1.4 Content"
+       },
+       {
+        "checklistResourceId": 19024,
+        "title": "SCC 5.15 Windows",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_Windows_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 19025,
+        "title": "Microsoft Defender Antivirus STIG - Ver 2, Rel 10",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Defender_Antivirus_V2R10_STIG.zip",
+        "resourceTypeName": "Standalone XCCDF 1.1.4"
+       },
+       {
+        "checklistResourceId": 19026,
+        "title": "Microsoft Defender Antivirus STIG SCAP Benchmark - Ver 2, Rel 10",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Defender_Antivirus_V2R10_STIG_SCAP_1-3_Benchmark.zip",
+        "resourceTypeName": "SCAP 1.3 Content"
+       }
+      ]
+     },
+     {
+      "checklistId": 356,
+      "name": "Mozilla Firefox STIG",
+      "version": "Version 6, Release 9",
+      "authority": "Defense Information Systems Agency",
+      "lastModified": "2026-10-06T11:29:34.803",
+      "targets": [
+       "Mozilla Firefox"
+      ],
+      "resources": [
+       {
+        "checklistResourceId": 18968,
+        "title": "Intune Policy - July 2026",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_Intune_Policy_Package_July_2026.zip",
+        "resourceTypeName": "Intune Policies"
+       },
+       {
+        "checklistResourceId": 18969,
+        "title": "Group Policy Objects (GPOs) - July 2026",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_STIG_GPO_Package_July_2026.zip",
+        "resourceTypeName": "GPOs"
+       },
+       {
+        "checklistResourceId": 18970,
+        "title": "U_MOZ_Firefox_Linux_V6R7_STIG_SCAP_1-4_Benchmark-enhancedV12-signed.zip",
+        "location": "https://raw.githubusercontent.com/niwc-atlantic/scap-content-library/refs/heads/main/Current/U_MOZ_Firefox_Linux_V6R7_STIG_SCAP_1-4_Benchmark-enhancedV12-signed.zip",
+        "resourceTypeName": "SCAP 1.4 Content"
+       },
+       {
+        "checklistResourceId": 18971,
+        "title": "U_MOZ_Firefox_Windows_V6R8_STIG_SCAP_1-4_Benchmark-enhancedV13-signed.zip",
+        "location": "https://raw.githubusercontent.com/niwc-atlantic/scap-content-library/refs/heads/main/Current/U_MOZ_Firefox_Windows_V6R8_STIG_SCAP_1-4_Benchmark-enhancedV13-signed.zip",
+        "resourceTypeName": "SCAP 1.4 Content"
+       },
+       {
+        "checklistResourceId": 18972,
+        "title": "SCC 5.15 Linux x86 64",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_linux_x86_64_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18973,
+        "title": "SCC 5.15 Solaris 11 i386",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_solaris11_i386_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18974,
+        "title": "SCC 5.15 Solaris 11 SPARC",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_solaris11_sparc_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18975,
+        "title": "SCC 5.15 Windows",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_Windows_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18976,
+        "title": "SCC 5.15 MacOS ARM64",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_macOS_arm64_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18977,
+        "title": "SCC 5.15 Linux Aarch64",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_linux_aarch64_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18978,
+        "title": "Mozilla Firefox STIG - Ver 6, Rel 9",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MOZ_Firefox_V6R9_STIG.zip",
+        "resourceTypeName": "Standalone XCCDF 1.1.4"
+       },
+       {
+        "checklistResourceId": 18979,
+        "title": "Mozilla Firefox for Windows STIG SCAP Benchmark - Ver 6, Rel 9",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MOZ_Firefox_Windows_V6R9_STIG_SCAP_1-3_Benchmark.zip",
+        "resourceTypeName": "SCAP 1.3 Content"
+       },
+       {
+        "checklistResourceId": 18980,
+        "title": "Mozilla Firefox for Linux STIG SCAP Benchmark - Ver 6, Rel 8",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MOZ_Firefox_Linux_V6R8_STIG_SCAP_1-3_Benchmark.zip",
+        "resourceTypeName": "SCAP 1.3 Content"
+       }
+      ]
+     },
+     {
+      "checklistId": 356,
+      "name": "Mozilla Firefox STIG",
+      "version": "Version 6, Release 9",
+      "authority": "Defense Information Systems Agency",
+      "lastModified": "2026-10-06T11:29:34.803",
+      "targets": [
+       "Mozilla Firefox"
+      ],
+      "resources": [
+       {
+        "checklistResourceId": 18968,
+        "title": "Intune Policy - July 2026",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_Intune_Policy_Package_July_2026.zip",
+        "resourceTypeName": "Intune Policies"
+       },
+       {
+        "checklistResourceId": 18969,
+        "title": "Group Policy Objects (GPOs) - July 2026",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_STIG_GPO_Package_July_2026.zip",
+        "resourceTypeName": "GPOs"
+       },
+       {
+        "checklistResourceId": 18970,
+        "title": "U_MOZ_Firefox_Linux_V6R7_STIG_SCAP_1-4_Benchmark-enhancedV12-signed.zip",
+        "location": "https://raw.githubusercontent.com/niwc-atlantic/scap-content-library/refs/heads/main/Current/U_MOZ_Firefox_Linux_V6R7_STIG_SCAP_1-4_Benchmark-enhancedV12-signed.zip",
+        "resourceTypeName": "SCAP 1.4 Content"
+       },
+       {
+        "checklistResourceId": 18971,
+        "title": "U_MOZ_Firefox_Windows_V6R8_STIG_SCAP_1-4_Benchmark-enhancedV13-signed.zip",
+        "location": "https://raw.githubusercontent.com/niwc-atlantic/scap-content-library/refs/heads/main/Current/U_MOZ_Firefox_Windows_V6R8_STIG_SCAP_1-4_Benchmark-enhancedV13-signed.zip",
+        "resourceTypeName": "SCAP 1.4 Content"
+       },
+       {
+        "checklistResourceId": 18972,
+        "title": "SCC 5.15 Linux x86 64",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_linux_x86_64_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18973,
+        "title": "SCC 5.15 Solaris 11 i386",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_solaris11_i386_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18974,
+        "title": "SCC 5.15 Solaris 11 SPARC",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_solaris11_sparc_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18975,
+        "title": "SCC 5.15 Windows",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_Windows_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18976,
+        "title": "SCC 5.15 MacOS ARM64",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_macOS_arm64_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18977,
+        "title": "SCC 5.15 Linux Aarch64",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_linux_aarch64_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18978,
+        "title": "Mozilla Firefox STIG - Ver 6, Rel 9",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MOZ_Firefox_V6R9_STIG.zip",
+        "resourceTypeName": "Standalone XCCDF 1.1.4"
+       },
+       {
+        "checklistResourceId": 18979,
+        "title": "Mozilla Firefox for Windows STIG SCAP Benchmark - Ver 6, Rel 9",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MOZ_Firefox_Windows_V6R9_STIG_SCAP_1-3_Benchmark.zip",
+        "resourceTypeName": "SCAP 1.3 Content"
+       },
+       {
+        "checklistResourceId": 18980,
+        "title": "Mozilla Firefox for Linux STIG SCAP Benchmark - Ver 6, Rel 8",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MOZ_Firefox_Linux_V6R8_STIG_SCAP_1-3_Benchmark.zip",
+        "resourceTypeName": "SCAP 1.3 Content"
+       }
+      ]
+     },
+     {
+      "checklistId": 686,
+      "name": "Microsoft Windows Defender Firewall with Advanced Security STIG",
+      "version": "Ver 2, Rel 2",
+      "authority": "Defense Information Systems Agency",
+      "lastModified": "2026-09-10T15:15:22.893",
+      "targets": [
+       "Windows Firewall"
+      ],
+      "resources": [
+       {
+        "checklistResourceId": 18858,
+        "title": "Microsoft Windows Defender Firewall with Advanced Security STIG Benchmark - Ver 2, Rel 3",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_Defender_Firewall_V2R3_STIG_SCAP_1-2_Benchmark.zip",
+        "resourceTypeName": "SCAP 1.2 Content"
+       },
+       {
+        "checklistResourceId": 18859,
+        "title": "Microsoft Windows Defender Firewall with Advanced Security STIG - Ver 2, Rel 2",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_Defender_Firewall_V2R2_STIG.zip",
+        "resourceTypeName": "Standalone XCCDF 1.1.4"
+       },
+       {
+        "checklistResourceId": 18860,
+        "title": "Intune Policy - July 2026",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_Intune_Policy_Package_July_2026.zip",
+        "resourceTypeName": "Intune Policies"
+       },
+       {
+        "checklistResourceId": 18861,
+        "title": "Group Policy Objects (GPOs) - July 2026",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_STIG_GPO_Package_July_2026.zip",
+        "resourceTypeName": "GPOs"
+       },
+       {
+        "checklistResourceId": 18862,
+        "title": "U_MS_Windows_Defender_Firewall_V2R3_STIG_SCAP_1-4_Benchmark-enhancedV14-signed.zip",
+        "location": "https://raw.githubusercontent.com/niwc-atlantic/scap-content-library/refs/heads/main/Current/U_MS_Windows_Defender_Firewall_V2R3_STIG_SCAP_1-4_Benchmark-enhancedV14-signed.zip",
+        "resourceTypeName": "SCAP 1.4 Content"
+       },
+       {
+        "checklistResourceId": 18863,
+        "title": "SCC 5.15 Windows",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_Windows_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       }
+      ]
+     },
+     {
+      "checklistId": 483,
+      "name": "Google Chrome Browser STIG for Windows",
+      "version": "Version 2, Release 11",
+      "authority": "Defense Information Systems Agency",
+      "lastModified": "2026-09-10T14:34:37.153",
+      "targets": [
+       "Google Chrome"
+      ],
+      "resources": [
+       {
+        "checklistResourceId": 18812,
+        "title": "Google Chrome STIG Benchmark - Ver 2, Rel 11",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_Google_Chrome_V2R11_STIG_SCAP_1-3_Benchmark.zip",
+        "resourceTypeName": "SCAP 1.3 Content"
+       },
+       {
+        "checklistResourceId": 18813,
+        "title": "Google Chrome STIG - Ver 2, Rel 11",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_Google_Chrome_V2R11_STIG.zip",
+        "resourceTypeName": "Standalone XCCDF 1.1.4"
+       },
+       {
+        "checklistResourceId": 18814,
+        "title": "Intune Policy - July 2026",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_Intune_Policy_Package_July_2026.zip",
+        "resourceTypeName": "Intune Policies"
+       },
+       {
+        "checklistResourceId": 18815,
+        "title": "Group Policy Objects (GPOs) - July 2026",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_STIG_GPO_Package_July_2026.zip",
+        "resourceTypeName": "GPOs"
+       },
+       {
+        "checklistResourceId": 18816,
+        "title": "U_Google_Chrome_V2R11_STIG_SCAP_1-4_Benchmark-enhancedV16-signed.zip",
+        "location": "https://raw.githubusercontent.com/niwc-atlantic/scap-content-library/refs/heads/main/Current/U_Google_Chrome_V2R11_STIG_SCAP_1-4_Benchmark-enhancedV16-signed.zip",
+        "resourceTypeName": "SCAP 1.4 Content"
+       },
+       {
+        "checklistResourceId": 18817,
+        "title": "SCC 5.15 Linux x86 64",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_linux_x86_64_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18818,
+        "title": "SCC 5.15 Windows",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_Windows_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18819,
+        "title": "SCC 5.15 MacOS ARM64",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_macOS_arm64_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18820,
+        "title": "SCC 5.15 Linux Aarch64",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_linux_aarch64_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18821,
+        "title": "SCC 5.15 Solaris 11 i386",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_solaris11_i386_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       },
+       {
+        "checklistResourceId": 18822,
+        "title": "SCC 5.15 Solaris 11 SPARC",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_solaris11_sparc_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       }
+      ]
+     },
+     {
+      "checklistId": 986,
+      "name": "Microsoft Edge STIG",
+      "version": "Ver 2, Rel 5",
+      "authority": "Defense Information Systems Agency",
+      "lastModified": "2026-09-10T14:09:30.250",
+      "targets": [
+       "Microsoft Edge"
+      ],
+      "resources": [
+       {
+        "checklistResourceId": 18768,
+        "title": "Microsoft Edge STIG Benchmark - Ver 2, Rel 5",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Edge_V2R5_STIG_SCAP_1-3_Benchmark.zip",
+        "resourceTypeName": "SCAP 1.3 Content"
+       },
+       {
+        "checklistResourceId": 18769,
+        "title": "Microsoft Edge STIG - Ver 2, Rel 5",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Edge_V2R5_STIG.zip",
+        "resourceTypeName": "Standalone XCCDF 1.1.4"
+       },
+       {
+        "checklistResourceId": 18770,
+        "title": "Intune Policy - July 2026",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_Intune_Policy_Package_July_2026.zip",
+        "resourceTypeName": "Intune Policies"
+       },
+       {
+        "checklistResourceId": 18771,
+        "title": "Group Policy Objects (GPOs) - July 2026",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_STIG_GPO_Package_July_2026.zip",
+        "resourceTypeName": "GPOs"
+       },
+       {
+        "checklistResourceId": 18772,
+        "title": "U_MS_Edge_V2R5_STIG_SCAP_1-4_Benchmark-enhancedV16-signed.zip",
+        "location": "https://raw.githubusercontent.com/niwc-atlantic/scap-content-library/refs/heads/main/Current/U_MS_Edge_V2R5_STIG_SCAP_1-4_Benchmark-enhancedV16-signed.zip",
+        "resourceTypeName": "SCAP 1.4 Content"
+       },
+       {
+        "checklistResourceId": 18773,
+        "title": "SCC 5.15 Windows",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_Windows_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       }
+      ]
+     },
+     {
+      "checklistId": 432,
+      "name": "Microsoft .NET Framework 4",
+      "version": "Version 2, Release 8",
+      "authority": "Defense Information Systems Agency",
+      "lastModified": "2026-09-10T13:03:48.963",
+      "targets": [
+       "Microsoft .NET Framework 4.0"
+      ],
+      "resources": [
+       {
+        "checklistResourceId": 18605,
+        "title": "Sunset - Microsoft DotNet Framework 4.0 STIG - Ver 2, Rel 9",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_DotNet_Framework_4-0_V2R9_STIG.zip",
+        "resourceTypeName": "Standalone XCCDF 1.1.4"
+       },
+       {
+        "checklistResourceId": 18606,
+        "title": "Sunset - Microsoft DotNet Framework 4.0 STIG SCAP Benchmark - Ver 2, Rel 8",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_DotNet_Framework_4-0_V2R8_STIG_SCAP_1-3_Benchmark.zip",
+        "resourceTypeName": "SCAP 1.3 Content"
+       },
+       {
+        "checklistResourceId": 18607,
+        "title": "U_MS_DotNet_Framework_4-0_V2R8_STIG_SCAP_1-4_Benchmark-enhancedV15-signed.zip",
+        "location": "https://raw.githubusercontent.com/niwc-atlantic/scap-content-library/refs/heads/main/Current/U_MS_DotNet_Framework_4-0_V2R8_STIG_SCAP_1-4_Benchmark-enhancedV15-signed.zip",
+        "resourceTypeName": "SCAP 1.4 Content"
+       },
+       {
+        "checklistResourceId": 18608,
+        "title": "SCC 5.15 Windows",
+        "location": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.15_Windows_bundle.zip",
+        "resourceTypeName": "Automated Content"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}
