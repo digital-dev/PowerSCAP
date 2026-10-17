@@ -35,6 +35,78 @@ namespace PowerScapTests
 '@
 }
 
+if (-not ('PowerScapTests.FakeTransport' -as [type])) {
+    Add-Type -ReferencedAssemblies $script:EngineAssembly -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.IO;
+using PowerScap.Engine.Ncp;
+namespace PowerScapTests
+{
+    /// Serves canned responses by URL substring; records every URL requested.
+    public class FakeTransport : IHttpTransport
+    {
+        readonly List<KeyValuePair<string, string>> text = new List<KeyValuePair<string, string>>();
+        readonly List<KeyValuePair<string, string>> files = new List<KeyValuePair<string, string>>();
+        readonly List<KeyValuePair<string, string>> failures = new List<KeyValuePair<string, string>>();
+        public List<string> Requests = new List<string>();
+        public string ETag = "\"etag-1\"";
+        public bool PartialThenFail;
+
+        public void Map(string urlPart, string body) { text.Add(new KeyValuePair<string, string>(urlPart, body)); }
+        public void MapFile(string urlPart, string path) { files.Add(new KeyValuePair<string, string>(urlPart, path)); }
+        public void Fail(string urlPart, string message) { failures.Add(new KeyValuePair<string, string>(urlPart, message)); }
+
+        void Check(string url)
+        {
+            Requests.Add(url);
+            foreach (var f in failures) if (url.Contains(f.Key)) throw new NcpException(url, f.Value);
+        }
+
+        static string Find(List<KeyValuePair<string, string>> map, string url)
+        {
+            foreach (var kv in map) if (url.Contains(kv.Key)) return kv.Value;
+            return null;
+        }
+
+        public string GetString(string url)
+        {
+            Check(url);
+            string body = Find(text, url);
+            if (body == null) throw new NcpException(url, "404 Not Found");
+            return body;
+        }
+
+        public HttpHead Head(string url)
+        {
+            Check(url);
+            return new HttpHead { Status = 200, ETag = ETag };
+        }
+
+        public void Download(string url, string destinationPath)
+        {
+            Check(url);
+            string file = Find(files, url);
+            if (file != null)
+            {
+                if (PartialThenFail)
+                {
+                    byte[] all = File.ReadAllBytes(file);
+                    using (var fs = File.Create(destinationPath)) fs.Write(all, 0, all.Length / 2);
+                    throw new NcpException(url, "connection reset");
+                }
+                File.Copy(file, destinationPath, true);
+                return;
+            }
+            string body = Find(text, url);
+            if (body == null) throw new NcpException(url, "404 Not Found");
+            File.WriteAllText(destinationPath, body);
+        }
+    }
+}
+'@
+}
+
 function New-OvalDocument([string]$Objects, [string]$States = '', [string]$Variables = '', [string]$Tests = '', [string]$Definitions = '') {
     $xml = @"
 <oval_definitions xmlns="http://oval.mitre.org/XMLSchema/oval-definitions-5"
