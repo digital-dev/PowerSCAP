@@ -33,6 +33,12 @@
           </logical-test>
         </platform>
       </platform-specification>
+      <Profile id="xccdf_test_profile_p3">
+        <title>Profile 3</title>
+        <select idref="xccdf_test_rule_r5" selected="true"/>
+        <select idref="xccdf_test_rule_r6" selected="true"/>
+        <select idref="xccdf_test_rule_r7" selected="true"/>
+      </Profile>
       <Profile id="xccdf_test_profile_p1">
         <title>Profile 1</title>
         <select idref="xccdf_test_rule_r1" selected="true"/>
@@ -82,6 +88,24 @@
             <check-content-ref href="oval.xml" name="oval:test:def:2"/>
           </check>
         </Rule>
+        <Rule id="xccdf_test_rule_r5" selected="false" severity="medium" weight="10.0">
+          <title>Negated check of a false definition</title>
+          <check system="http://oval.mitre.org/XMLSchema/oval-definitions-5" negate="true">
+            <check-content-ref href="oval.xml" name="oval:test:def:2"/>
+          </check>
+        </Rule>
+        <Rule id="xccdf_test_rule_r6" selected="false" severity="medium" weight="10.0">
+          <title>Manual question only</title>
+          <check system="http://scap.nist.gov/schema/ocil/2">
+            <check-content-ref href="ocil.xml" name="ocil:test:questionnaire:1"/>
+          </check>
+        </Rule>
+        <Rule id="xccdf_test_rule_r7" selected="false" severity="medium" weight="10.0">
+          <title>Definition without criteria</title>
+          <check system="http://oval.mitre.org/XMLSchema/oval-definitions-5">
+            <check-content-ref href="oval.xml" name="oval:test:def:3"/>
+          </check>
+        </Rule>
       </Group>
     </Benchmark>
   </ds:component>
@@ -102,6 +126,9 @@
         <definition id="oval:test:def:2" version="1" class="compliance">
           <metadata><title>Family is not windows</title><description>d</description></metadata>
           <criteria negate="true"><criterion test_ref="oval:test:tst:1"/></criteria>
+        </definition>
+        <definition id="oval:test:def:3" version="1" class="compliance">
+          <metadata><title>No criteria</title><description>d</description></metadata>
         </definition>
       </definitions>
       <tests>
