@@ -127,8 +127,8 @@ namespace PowerScap.Engine.Oval
             { 0x40, "kerberos_service_ticket_operations" }, { 0x41, "other_account_logon_events" },
             { 0x42, "kerberos_authentication_service" }, { 0x43, "network_policy_server" },
             { 0x44, "detailed_file_share" }, { 0x45, "removable_storage" }, { 0x46, "central_access_policy_staging" },
-            { 0x47, "user_device_claims" }, { 0x48, "plug_and_play_events" }, { 0x49, "group_membership" },
-            { 0x4A, "token_right_adjusted_events" }
+            { 0x47, "user_device_claims" }, { 0x48, "pnp_activity" }, { 0x49, "group_membership" },
+            { 0x4A, "audit_detailedtracking_tokenrightadjusted" }
         };
 
         public CollectedObject Collect(ObjectSpec spec, OvalContext ctx)
@@ -137,16 +137,22 @@ namespace PowerScap.Engine.Oval
             var item = new OvalItem(ctx.NextItemId(), "auditeventpolicysubcategories_item");
             foreach (var kv in policy)
             {
-                byte[] b = kv.Key.ToByteArray();
-                int suffix = b[0];
-                bool known = b[1] == 0x92 && b[2] == 0xCE && b[3] == 0x0C;
-                string name;
-                if (!known || !Names.TryGetValue(suffix, out name)) continue;
+                string name = EntityName(kv.Key);
+                if (name == null) continue;
                 item.Add(name, Text(kv.Value));
             }
             var r = new CollectedObject(spec.ObjectId);
             r.Items.Add(item);
             return r;
+        }
+
+        /// <summary>OVAL entity name for an audit subcategory GUID, or null for subcategories OVAL does not define.</summary>
+        public static string EntityName(Guid subcategory)
+        {
+            byte[] b = subcategory.ToByteArray();
+            string name;
+            bool known = b[1] == 0x92 && b[2] == 0xCE && b[3] == 0x0C;
+            return known && Names.TryGetValue(b[0], out name) ? name : null;
         }
 
         static string Text(uint info)

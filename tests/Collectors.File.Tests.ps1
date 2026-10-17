@@ -86,6 +86,15 @@ Describe 'File collectors' {
         Remove-Item $tree -Recurse -Force
     }
 
+    It 'xmlfilecontent with an XPath that selects nothing is a does-not-exist item (as SCC reports it)' {
+        $o = '<ind:xmlfilecontent_object id="oval:t:obj:noxpath" version="1"><ind:filepath>' + $r + '\app.exe.config</ind:filepath><ind:xpath>/configuration/system.net/defaultProxy/@enabled</ind:xpath></ind:xmlfilecontent_object>'
+        $ctx2 = New-DefaultContext -Objects $o
+        $res = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:noxpath'), $ctx2)
+        $res.Items.Count | Should Be 1
+        $res.Items[0].Status.ToString() | Should Be 'DoesNotExist'
+        $res.Items[0].Get('value_of')[0].Status.ToString() | Should Be 'DoesNotExist'
+    }
+
     It 'xmlfilecontent skips files that are not XML (no item, object not in error)' {
         $o = C 'oval:t:obj:xmlall'
         $o.Flag.ToString() | Should Be 'Complete'

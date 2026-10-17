@@ -90,7 +90,13 @@ namespace PowerScap.Engine.Oval
                 {
                     int count = 0;
                     while (iterator.MoveNext()) { item.Add("value_of", iterator.Current.Value); count++; }
-                    if (count == 0) item.Entities.Add(OvalEntity.Missing("value_of"));
+                    if (count == 0)
+                    {
+                        // Nothing selected: the item does not exist (SCC reports "[ does not exist ] ... value_of does
+                        // not exist"), so it is not compared with states.
+                        item.Entities.Add(OvalEntity.Missing("value_of"));
+                        item.Status = ItemStatus.DoesNotExist;
+                    }
                 }
                 else if (value is double)
                     item.Add("value_of", ((double)value).ToString(CultureInfo.InvariantCulture));

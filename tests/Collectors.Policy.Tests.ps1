@@ -103,3 +103,29 @@ Describe 'Policy collectors without elevation' {
         $o.Flag.ToString() | Should Be 'Error'
     }
 }
+
+Describe 'Account and audit naming (as SCC reports them)' {
+    It 'strips BUILTIN, NT AUTHORITY and the local computer from trustee names, and keeps other domains' {
+        [PowerScap.Engine.Oval.Accounts]::Bare('BUILTIN\Administrators') | Should Be 'Administrators'
+        [PowerScap.Engine.Oval.Accounts]::Bare('NT AUTHORITY\LOCAL SERVICE') | Should Be 'LOCAL SERVICE'
+        [PowerScap.Engine.Oval.Accounts]::Bare("$env:COMPUTERNAME\Visitor") | Should Be 'Visitor'
+        [PowerScap.Engine.Oval.Accounts]::Bare('RESTRICTED SERVICES\PrintSpoolerService') | Should Be 'RESTRICTED SERVICES\PrintSpoolerService'
+        [PowerScap.Engine.Oval.Accounts]::Bare('NT VIRTUAL MACHINE\Virtual Machines') | Should Be 'NT VIRTUAL MACHINE\Virtual Machines'
+        [PowerScap.Engine.Oval.Accounts]::Bare('Everyone') | Should Be 'Everyone'
+    }
+
+    It 'uses the OVAL entity names for audit subcategories' {
+        [PowerScap.Engine.Oval.AuditEventPolicySubcategoriesCollector]::EntityName([guid]'0CCE9248-69AE-11D9-BED3-505054503030') | Should Be 'pnp_activity'
+        [PowerScap.Engine.Oval.AuditEventPolicySubcategoriesCollector]::EntityName([guid]'0CCE924A-69AE-11D9-BED3-505054503030') | Should Be 'audit_detailedtracking_tokenrightadjusted'
+        [PowerScap.Engine.Oval.AuditEventPolicySubcategoriesCollector]::EntityName([guid]'0CCE923F-69AE-11D9-BED3-505054503030') | Should Be 'credential_validation'
+    }
+}
+
+Describe 'User rights Windows no longer defines' -Tag Admin {
+    It 'SE_UNSOLICITED_INPUT_NAME has no holders instead of failing the object' {
+        $ctx = New-DefaultContext -Objects '<win:userright_object id="oval:t:obj:unsolicited" version="1"><win:userright>SE_UNSOLICITED_INPUT_NAME</win:userright></win:userright_object>'
+        $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx.FindObject('oval:t:obj:unsolicited'), $ctx)
+        $o.Flag.ToString() | Should Be 'Complete'
+        $o.Items[0].Get('trustee_sid')[0].Value | Should Be ''
+    }
+}

@@ -33,10 +33,19 @@ namespace PowerScap.Engine.Oval
             return i < 0 ? string.Empty : qualified.Substring(0, i);
         }
 
+        /// <summary>
+        /// Trustee name as OVAL interpreters report it: the domain is dropped for BUILTIN, NT AUTHORITY and the
+        /// local computer, and kept otherwise (SCC: "RESTRICTED SERVICES\PrintSpoolerService").
+        /// </summary>
         public static string Bare(string qualified)
         {
             int i = qualified.IndexOf('\\');
-            return i < 0 ? qualified : qualified.Substring(i + 1);
+            if (i < 0) return qualified;
+            string domain = qualified.Substring(0, i);
+            if (domain.Equals("BUILTIN", StringComparison.OrdinalIgnoreCase) || domain.Equals("NT AUTHORITY", StringComparison.OrdinalIgnoreCase) ||
+                domain.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase))
+                return qualified.Substring(i + 1);
+            return qualified;
         }
 
         /// <summary>Accounts worth enumerating for pattern matches: local users, local groups, rights holders, well-known SIDs.</summary>

@@ -127,7 +127,8 @@ namespace PowerScap.Engine.Native
                 IntPtr buffer;
                 uint count;
                 uint status = LsaEnumerateAccountsWithUserRight(policy, ref us, out buffer, out count);
-                if (status == STATUS_NO_MORE_ENTRIES || status == STATUS_OBJECT_NAME_NOT_FOUND) return result;
+                // STATUS_NO_SUCH_PRIVILEGE: a right this Windows no longer defines (SeUnsolicitedInputPrivilege) has no holders.
+                if (status == STATUS_NO_MORE_ENTRIES || status == STATUS_OBJECT_NAME_NOT_FOUND || status == 0xC0000060) return result;
                 if (status != 0) throw new Win32Exception(LsaNtStatusToWinError(status));
                 try
                 {
