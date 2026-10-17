@@ -1,0 +1,8 @@
+# Brainstorming companion scratch files
+.superpowers/
+
+# Local SCAP content cache, scan output and test artifacts
+/cache/
+/results/
+/out/
+*.log
