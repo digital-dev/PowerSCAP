@@ -45,6 +45,11 @@ Describe 'ObjectEvaluator' {
         $o.Items.Count | Should Be 0
     }
 
+    It 'filter with a multi-value variable matches when any value does (.NET SV-225232 exclude paths)' {
+        $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx.FindObject('oval:t:obj:not_os'), $ctx)
+        Get-Names $o | Should Be 'b'
+    }
+
     It 'test states keep the OVAL default entity_check="all"' {
         $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx.FindObject('oval:t:obj:groups'), $ctx)
         [PowerScap.Engine.Oval.StateEvaluator]::Evaluate($ctx.FindState('oval:t:ste:is_admin'), $o.Items[0], $ctx).ToString() | Should Be 'False'

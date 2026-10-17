@@ -44,6 +44,9 @@ namespace PowerScap.Engine.Oval
 
             var criterion = ObjectEvaluator.BuildCriterion(stateEntity, ctx);
             if (criterion.VariableFlag.HasValue) return OvalResult.Error;
+            // Filters (defaultEntityCheck "at least one"): a multi-value variable matches when any value does,
+            // unless the content sets var_check (.NET SV-225232 excludes three Windows paths with one variable).
+            if (defaultEntityCheck != "all" && !stateEntity.HasAttribute("var_check")) criterion.VarCheck = defaultEntityCheck;
             string entityCheck = stateEntity.HasAttribute("entity_check") ? stateEntity.GetAttribute("entity_check") : defaultEntityCheck;
 
             var results = new List<OvalResult>();

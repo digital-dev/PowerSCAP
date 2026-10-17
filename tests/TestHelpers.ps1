@@ -135,5 +135,7 @@ function New-TestContext([string]$Path) {
     $doc = [PowerScap.Engine.Content.ScapContentLoader]::LoadXml($Path)
     $reg = New-Object PowerScap.Engine.Oval.CollectorRegistry
     $reg.Register((New-Object PowerScapTests.FakeCollector))
-    New-Object PowerScap.Engine.Oval.OvalContext($doc, $reg)
+    $ctx = New-Object PowerScap.Engine.Oval.OvalContext($doc, $reg)
+    $ctx.Variables = New-Object PowerScap.Engine.Oval.VariableResolver($ctx, $null)
+    $ctx
 }
