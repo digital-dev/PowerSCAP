@@ -24,7 +24,7 @@ namespace PowerScapTests
             foreach (var v in csv.Split(','))
             {
                 var item = new OvalItem(ctx.NextItemId(), "fake_item");
-                item.Entities.Add(new OvalEntity("name", v));
+                foreach (var part in v.Split('|')) item.Entities.Add(new OvalEntity("name", part)); // "a|b": two name entities
                 result.Items.Add(item);
             }
             result.Flag = result.Items.Count > 0 ? CollectedFlag.Complete : CollectedFlag.DoesNotExist;

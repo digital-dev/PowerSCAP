@@ -22,8 +22,17 @@
     <t:fake_object id="oval:t:obj:filtered" version="1">
       <set><object_reference>oval:t:obj:a</object_reference><filter action="exclude">oval:t:ste:is_a</filter></set>
     </t:fake_object>
+    <t:fake_object id="oval:t:obj:groups" version="1"><t:items>x|Administrators,y|z</t:items></t:fake_object>
+    <t:fake_object id="oval:t:obj:admins" version="1">
+      <set><object_reference>oval:t:obj:groups</object_reference><filter action="include">oval:t:ste:is_admin</filter></set>
+    </t:fake_object>
+    <t:fake_object id="oval:t:obj:admins_all" version="1">
+      <set><object_reference>oval:t:obj:groups</object_reference><filter action="include">oval:t:ste:is_admin_all</filter></set>
+    </t:fake_object>
   </objects>
   <states>
     <t:fake_state id="oval:t:ste:is_a" version="1"><t:name>a</t:name></t:fake_state>
+    <t:fake_state id="oval:t:ste:is_admin" version="1"><t:name>Administrators</t:name></t:fake_state>
+    <t:fake_state id="oval:t:ste:is_admin_all" version="1"><t:name entity_check="all">Administrators</t:name></t:fake_state>
   </states>
 </oval_definitions>

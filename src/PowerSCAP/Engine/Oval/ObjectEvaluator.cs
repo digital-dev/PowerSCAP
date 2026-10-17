@@ -204,7 +204,10 @@ namespace PowerScap.Engine.Oval
                 var keep = new List<OvalItem>();
                 foreach (var item in collected.Items)
                 {
-                    var r = StateEvaluator.Evaluate(state, item, ctx);
+                    // A filter selects items: a multi-valued entity matches when any value does, unless the state
+                    // sets entity_check. This is what STIG content intends ("members of Administrators" includes a
+                    // user who is also in other groups) and what SCC does (SV-253476); strict OVAL 5.11 would use "all".
+                    var r = StateEvaluator.Evaluate(state, item, ctx, "at least one");
                     bool matches = r == OvalResult.True;
                     if (r == OvalResult.Error) collected.Messages.Add("Filter evaluation error on item " + item.Id + ".");
                     if (action == "include" ? matches : !matches) keep.Add(item);

@@ -34,6 +34,22 @@ Describe 'ObjectEvaluator' {
         Get-Names $o | Should Be 'b'
     }
 
+    It 'filter on a multi-valued entity matches when any value does (STIG intent; SCC)' {
+        # user_object filter "group = Administrators" on a user in Administrators and docker-users (SV-253476).
+        $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx.FindObject('oval:t:obj:admins'), $ctx)
+        Get-Names $o | Should Be 'x'
+    }
+
+    It 'filter honours an explicit entity_check="all"' {
+        $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx.FindObject('oval:t:obj:admins_all'), $ctx)
+        $o.Items.Count | Should Be 0
+    }
+
+    It 'test states keep the OVAL default entity_check="all"' {
+        $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx.FindObject('oval:t:obj:groups'), $ctx)
+        [PowerScap.Engine.Oval.StateEvaluator]::Evaluate($ctx.FindState('oval:t:ste:is_admin'), $o.Items[0], $ctx).ToString() | Should Be 'False'
+    }
+
     It 'unknown object type is NotCollected' {
         $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx.FindObject('oval:t:obj:unknown'), $ctx)
         $o.Flag.ToString() | Should Be 'NotCollected'

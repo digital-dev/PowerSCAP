@@ -10,6 +10,12 @@ namespace PowerScap.Engine.Oval
     {
         public static OvalResult Evaluate(XmlElement state, OvalItem item, OvalContext ctx)
         {
+            return Evaluate(state, item, ctx, "all");
+        }
+
+        /// <summary>defaultEntityCheck applies where a state entity has no entity_check attribute.</summary>
+        public static OvalResult Evaluate(XmlElement state, OvalItem item, OvalContext ctx, string defaultEntityCheck)
+        {
             if (item.Status == ItemStatus.Error) return OvalResult.Error;
             if (item.Status == ItemStatus.NotCollected) return OvalResult.Unknown;
             if (item.Status == ItemStatus.DoesNotExist) return OvalResult.False;
@@ -19,13 +25,13 @@ namespace PowerScap.Engine.Oval
             {
                 var se = n as XmlElement;
                 if (se == null || se.LocalName == "notes" || se.NamespaceURI == OvalContext.DefNs) continue;
-                entityResults.Add(EvaluateEntity(se, item.Get(se.LocalName), ctx));
+                entityResults.Add(EvaluateEntity(se, item.Get(se.LocalName), ctx, defaultEntityCheck));
             }
             string op = state.HasAttribute("operator") ? state.GetAttribute("operator") : "AND";
             return OvalLogic.Combine(op, entityResults);
         }
 
-        static OvalResult EvaluateEntity(XmlElement stateEntity, IList<OvalEntity> itemEntities, OvalContext ctx)
+        static OvalResult EvaluateEntity(XmlElement stateEntity, IList<OvalEntity> itemEntities, OvalContext ctx, string defaultEntityCheck)
         {
             // Entity-level check_existence (default at_least_one_exists) decides first whether values are compared.
             string checkExistence = stateEntity.HasAttribute("check_existence") ? stateEntity.GetAttribute("check_existence") : "at_least_one_exists";
@@ -38,7 +44,7 @@ namespace PowerScap.Engine.Oval
 
             var criterion = ObjectEvaluator.BuildCriterion(stateEntity, ctx);
             if (criterion.VariableFlag.HasValue) return OvalResult.Error;
-            string entityCheck = stateEntity.HasAttribute("entity_check") ? stateEntity.GetAttribute("entity_check") : "all";
+            string entityCheck = stateEntity.HasAttribute("entity_check") ? stateEntity.GetAttribute("entity_check") : defaultEntityCheck;
 
             var results = new List<OvalResult>();
             foreach (var ie in itemEntities)
