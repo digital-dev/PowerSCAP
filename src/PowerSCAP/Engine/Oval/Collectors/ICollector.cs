@@ -52,6 +52,10 @@ namespace PowerScap.Engine.Oval
             r.Register(new GroupCollector(false));
             r.Register(new GroupCollector(true));
             r.Register(new ServiceCollector());
+            r.Register(new FileEffectiveRights53Collector());
+            r.Register(new RegKeyEffectiveRights53Collector());
+            r.Register(new SharedResourceCollector());
+            r.Register(new WuaUpdateSearcherCollector());
             return r;
         }
     }
