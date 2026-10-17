@@ -36,6 +36,11 @@ namespace PowerScap.Engine.Oval
             r.Register(new FamilyCollector());
             r.Register(new EnvironmentVariable58Collector());
             r.Register(new VariableCollector());
+            r.Register(new FileCollector());
+            r.Register(new TextFileContent54Collector());
+            r.Register(new XmlFileContentCollector());
+            r.Register(new FileHash58Collector());
+            r.Register(new Wmi57Collector());
             return r;
         }
     }

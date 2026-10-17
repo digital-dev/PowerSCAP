@@ -1,0 +1,85 @@
+$repo = Split-Path $PSScriptRoot -Parent
+Import-Module (Join-Path $repo 'src\PowerSCAP') -Force
+. (Join-Path $PSScriptRoot 'TestHelpers.ps1')
+
+$root = Join-Path $env:TEMP 'PowerSCAPFileTest'
+function X([string]$s) { [System.Security.SecurityElement]::Escape($s) }
+
+Describe 'File collectors' {
+    Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item "$root\sub\deeper" -ItemType Directory -Force | Out-Null
+    Set-Content "$root\settings.txt" -Value @('Setting=1', 'Other=2', 'Setting=3') -Encoding ASCII
+    Set-Content "$root\app.exe.config" -Encoding ASCII -Value '<configuration><runtime><loadFromRemoteSources enabled="true"/></runtime></configuration>'
+    Set-Content "$root\sub\deeper\b.exe.config" -Encoding ASCII -Value '<configuration/>'
+    Set-Content "$root\hash.bin" -Value 'abc' -NoNewline -Encoding ASCII
+
+    $r = X $root
+    $rx = X ([regex]::Escape($root))
+    $objects = @"
+<win:file_object id="oval:t:obj:kernel32" version="1"><win:filepath>C:\Windows\System32\kernel32.dll</win:filepath></win:file_object>
+<win:file_object id="oval:t:obj:missing" version="1"><win:filepath>$r\nope.txt</win:filepath></win:file_object>
+<win:file_object id="oval:t:obj:configs" version="1"><win:behaviors recurse_direction="down" max_depth="-1"/><win:path>$r</win:path><win:filename operation="pattern match">\.exe\.config$</win:filename></win:file_object>
+<win:file_object id="oval:t:obj:configs_pattern" version="1"><win:path operation="pattern match">^$rx(\\.*)?$</win:path><win:filename operation="pattern match">\.exe\.config$</win:filename></win:file_object>
+<ind:textfilecontent54_object id="oval:t:obj:text" version="1"><ind:filepath>$r\settings.txt</ind:filepath><ind:pattern operation="pattern match">^Setting=(\d+)$</ind:pattern><ind:instance datatype="int" operation="greater than or equal">1</ind:instance></ind:textfilecontent54_object>
+<ind:xmlfilecontent_object id="oval:t:obj:xml" version="1"><ind:filepath>$r\app.exe.config</ind:filepath><ind:xpath>/configuration/runtime/loadFromRemoteSources/@enabled</ind:xpath></ind:xmlfilecontent_object>
+<ind:filehash58_object id="oval:t:obj:hash" version="1"><ind:filepath>$r\hash.bin</ind:filepath><ind:hash_type>SHA-256</ind:hash_type></ind:filehash58_object>
+<win:wmi57_object id="oval:t:obj:wmi" version="1"><win:namespace>root\cimv2</win:namespace><win:wql>SELECT Caption FROM Win32_OperatingSystem</win:wql></win:wmi57_object>
+"@
+    $ctx = New-DefaultContext -Objects $objects
+    function C($id) { [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx.FindObject($id), $ctx) }
+
+    It 'reads the file version of kernel32.dll' {
+        $o = C 'oval:t:obj:kernel32'
+        $o.Items.Count | Should Be 1
+        $o.Items[0].Get('version')[0].Value | Should Match '^\d+\.\d+\.\d+\.\d+$'
+        $o.Items[0].Get('version')[0].Datatype | Should Be 'version'
+    }
+
+    It 'a missing filepath gives DoesNotExist' {
+        (C 'oval:t:obj:missing').Flag.ToString() | Should Be 'DoesNotExist'
+    }
+
+    It 'recurses down from a path to find files by pattern' {
+        $names = @((C 'oval:t:obj:configs').Items | ForEach-Object { $_.Get('filename')[0].Value }) | Sort-Object
+        $names -join ',' | Should Be 'app.exe.config,b.exe.config'
+    }
+
+    It 'matches directory paths by pattern' {
+        (C 'oval:t:obj:configs_pattern').Items.Count | Should Be 2
+    }
+
+    It 'textfilecontent54 returns one item per match with subexpressions' {
+        $o = C 'oval:t:obj:text'
+        $o.Items.Count | Should Be 2
+        ($o.Items | ForEach-Object { $_.Get('subexpression')[0].Value }) -join ',' | Should Be '1,3'
+        ($o.Items | ForEach-Object { $_.Get('instance')[0].Value }) -join ',' | Should Be '1,2'
+    }
+
+    It 'xmlfilecontent evaluates the XPath' {
+        (C 'oval:t:obj:xml').Items[0].Get('value_of')[0].Value | Should Be 'true'
+    }
+
+    It 'filehash58 computes SHA-256' {
+        (C 'oval:t:obj:hash').Items[0].Get('hash')[0].Value | Should Be 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+    }
+
+    It 'wmi57 returns a record with lower-case fields' {
+        $o = C 'oval:t:obj:wmi'
+        $o.Items.Count | Should Be 1
+        $result = $o.Items[0].Get('result')[0]
+        $result.Datatype | Should Be 'record'
+        ($result.Fields | Where-Object { $_.Name -eq 'caption' }).Value | Should Match 'Windows'
+    }
+
+    Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+Describe 'File search over a whole drive' -Tag Slow {
+    $ctx = New-DefaultContext -Objects '<win:file_object id="oval:t:obj:all" version="1"><win:behaviors max_depth="-1" recurse_direction="down"/><win:path>C:\</win:path><win:filename operation="pattern match">\.exe\.config$</win:filename></win:file_object>'
+
+    It 'completes and reports unreadable directories as messages, not errors' {
+        $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx.FindObject('oval:t:obj:all'), $ctx)
+        $o.Flag.ToString() | Should Not Be 'Error'
+        $o.Items.Count | Should BeGreaterThan 0
+    }
+}
