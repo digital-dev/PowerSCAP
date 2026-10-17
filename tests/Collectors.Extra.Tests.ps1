@@ -60,6 +60,22 @@ Describe 'Extra collectors' {
         @((C 'oval:t:obj:lines').Items[0].Get('stdout_line')).Count | Should Be 3
     }
 
+    It 'powershell shell commands run in-process (no child powershell.exe)' {
+        $ctx2 = New-DefaultContext -Objects '<ind:shellcommand_object id="oval:t:obj:pid" version="1"><ind:shell>powershell</ind:shell><ind:command>"pid=$PID"</ind:command><ind:pattern>^pid=(\d+)$</ind:pattern></ind:shellcommand_object>'
+        $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:pid'), $ctx2)
+        $o.Items[0].Get('subexpression')[0].Value | Should Be "$PID"
+    }
+
+    It 'powershell shell commands report native exit codes and errors' {
+        $objs = '<ind:shellcommand_object id="oval:t:obj:exit" version="1"><ind:shell>powershell</ind:shell><ind:command>cmd /c exit 3</ind:command><ind:pattern>.*</ind:pattern></ind:shellcommand_object>' +
+                '<ind:shellcommand_object id="oval:t:obj:err" version="1"><ind:shell>powershell</ind:shell><ind:command>Write-Error "boom"</ind:command><ind:pattern>.*</ind:pattern></ind:shellcommand_object>'
+        $ctx2 = New-DefaultContext -Objects $objs
+        ([PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:exit'), $ctx2)).Items[0].Get('exit_status')[0].Value | Should Be '3'
+        $e = ([PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:err'), $ctx2)).Items[0]
+        $e.Get('exit_status')[0].Value | Should Be '1'
+        ($e.Get('stderr_line') | ForEach-Object { $_.Value }) -join ' ' | Should Match 'boom'
+    }
+
     It 'wmi57 with no rows is DoesNotExist' {
         $o = C 'oval:t:obj:wmi57_none'
         $o.Items.Count | Should Be 0

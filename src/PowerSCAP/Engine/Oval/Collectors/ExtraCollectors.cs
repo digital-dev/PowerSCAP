@@ -246,6 +246,42 @@ namespace PowerScap.Engine.Oval
 
         static void Run(string shell, string command, out int exit, out string stdout, out string stderr)
         {
+            if (shell.Equals("powershell", StringComparison.OrdinalIgnoreCase) || shell.Equals("pwsh", StringComparison.OrdinalIgnoreCase))
+            {
+                RunInProcess(command, out exit, out stdout, out stderr);
+                return;
+            }
+            RunCmd(command, out exit, out stdout, out stderr);
+        }
+
+        /// <summary>
+        /// Runs PowerShell content in a private runspace inside this process. No child powershell.exe and no
+        /// encoded command lines, which antivirus heuristics treat as suspicious. Output is rendered as the
+        /// console would show it.
+        /// </summary>
+        static void RunInProcess(string command, out int exit, out string stdout, out string stderr)
+        {
+            using (var ps = PowerShell.Create())
+            {
+                ps.AddScript(command).AddCommand("Out-String").AddParameter("Stream").AddParameter("Width", 4096);
+                var async = ps.BeginInvoke();
+                if (!async.AsyncWaitHandle.WaitOne(TimeoutMs))
+                {
+                    ps.Stop();
+                    throw new TimeoutException("Command timed out: " + command);
+                }
+                var output = ps.EndInvoke(async);
+                stdout = string.Join("\n", output.Select(o => o == null ? "" : o.ToString()));
+                if (output.Count > 0) stdout += "\n";
+                stderr = string.Join("\n", ps.Streams.Error.Select(e => e.ToString()));
+                object last = ps.Runspace.SessionStateProxy.GetVariable("LASTEXITCODE");
+                if (last is int && (int)last != 0) exit = (int)last;
+                else exit = ps.HadErrors ? 1 : 0;
+            }
+        }
+
+        static void RunCmd(string command, out int exit, out string stdout, out string stderr)
+        {
             var psi = new ProcessStartInfo
             {
                 UseShellExecute = false,
@@ -253,17 +289,8 @@ namespace PowerScap.Engine.Oval
                 RedirectStandardError = true,
                 CreateNoWindow = true
             };
-            if (shell.Equals("powershell", StringComparison.OrdinalIgnoreCase))
-            {
-                // -EncodedCommand avoids every quoting problem with content-supplied scripts.
-                psi.FileName = Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe");
-                psi.Arguments = "-NoProfile -NonInteractive -EncodedCommand " + Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(command));
-            }
-            else
-            {
-                psi.FileName = Path.Combine(Environment.SystemDirectory, "cmd.exe");
-                psi.Arguments = "/d /c " + command;
-            }
+            psi.FileName = Path.Combine(Environment.SystemDirectory, "cmd.exe");
+            psi.Arguments = "/d /c " + command;
             using (var p = Process.Start(psi))
             {
                 var errTask = p.StandardError.ReadToEndAsync();
