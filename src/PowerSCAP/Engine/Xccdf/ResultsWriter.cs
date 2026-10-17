@@ -62,6 +62,13 @@ namespace PowerScap.Engine.Xccdf
         public static void WriteXccdf(ScapContent content, ResolvedProfile profile, List<RuleResult> results, List<Score> scores,
             TargetInfo target, string path, DateTime start, DateTime end)
         {
+            WriteXccdf(content, profile, results, scores, target, path, start, end, null);
+        }
+
+        /// <summary>Remarks become TestResult remark elements (e.g. an operator's signature override).</summary>
+        public static void WriteXccdf(ScapContent content, ResolvedProfile profile, List<RuleResult> results, List<Score> scores,
+            TargetInfo target, string path, DateTime start, DateTime end, IEnumerable<string> remarks)
+        {
             var doc = new XmlDocument();
             doc.AppendChild(doc.CreateXmlDeclaration("1.0", "UTF-8", null));
             XmlElement benchmark = (XmlElement)doc.ImportNode(content.Benchmark.DocumentElement, true);
@@ -78,6 +85,7 @@ namespace PowerScap.Engine.Xccdf
             tr.SetAttribute("version", "1.0");
 
             Text(tr, el("title"), "PowerSCAP scan of " + target.HostName);
+            if (remarks != null) foreach (var r in remarks) Text(tr, el("remark"), r);
             XmlElement identity = el("identity");
             identity.SetAttribute("authenticated", "true");
             identity.SetAttribute("privileged", target.Privileged ? "true" : "false");

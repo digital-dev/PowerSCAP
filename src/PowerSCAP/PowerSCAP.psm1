@@ -55,4 +55,5 @@ Import-PowerScapEngine
 $public = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'Public') -Filter *.ps1 -ErrorAction SilentlyContinue)
 foreach ($p in $public) { . $p.FullName }
 
-Export-ModuleMember -Function (@('Import-PowerScapEngine') + @($public | ForEach-Object { $_.BaseName }))
+# PowerSCAP.psd1 FunctionsToExport decides what is public; helpers stay internal.
+Export-ModuleMember -Function *-PowerScap*

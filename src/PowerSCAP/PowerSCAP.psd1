@@ -5,7 +5,11 @@
     Author            = 'PowerSCAP'
     Description       = 'Local SCAP compliance scanner for Windows.'
     PowerShellVersion = '5.1'
-    FunctionsToExport = @('Import-PowerScapEngine', 'Invoke-PowerScapScan')
+    FunctionsToExport = @(
+        'Import-PowerScapEngine', 'Invoke-PowerScapScan',
+        'Get-PowerScapSystemProfile', 'Find-PowerScapBenchmark', 'Save-PowerScapBenchmark',
+        'Import-PowerScapBenchmark', 'Get-PowerScapBenchmark', 'Test-PowerScapBenchmarkUpdate'
+    )
     CmdletsToExport   = @()
     VariablesToExport = @()
     AliasesToExport   = @()
