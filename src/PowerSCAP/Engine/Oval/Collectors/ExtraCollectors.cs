@@ -224,21 +224,23 @@ namespace PowerScap.Engine.Oval
                 if (stdout.Length == 0) lines = new string[0];
                 foreach (var pattern in (patternC == null ? new List<string> { ".*" } : patternC.Values))
                 {
+                    // One item per command run; each matching output line is a stdout_line entity.
                     var rx = OvalOps.ToRegex(pattern);
+                    var item = new OvalItem(ctx.NextItemId(), "shellcommand_item");
+                    item.Add("shell", shell).Add("command", command).Add("exit_status", exit.ToString(CultureInfo.InvariantCulture), "int");
+                    item.Add("pattern", pattern);
                     foreach (var line in lines)
                     {
                         Match m = rx.Match(line);
                         if (!m.Success) continue;
-                        var item = new OvalItem(ctx.NextItemId(), "shellcommand_item");
-                        item.Add("shell", shell).Add("command", command).Add("exit_status", exit.ToString(CultureInfo.InvariantCulture), "int");
-                        item.Add("pattern", pattern).Add("stdout_line", line);
+                        item.Add("stdout_line", line);
                         for (int g = 1; g < m.Groups.Count; g++) item.Add("subexpression", m.Groups[g].Value);
-                        if (!string.IsNullOrEmpty(stderr)) item.Add("stderr_line", stderr.Trim());
-                        r.Items.Add(item);
                     }
+                    foreach (var errLine in stderr.Replace("\r\n", "\n").TrimEnd('\n').Split('\n'))
+                        if (errLine.Length > 0) item.Add("stderr_line", errLine);
+                    r.Items.Add(item);
                 }
             }
-            if (r.Items.Count == 0) r.Flag = CollectedFlag.DoesNotExist;
             return r;
         }
 
@@ -253,8 +255,9 @@ namespace PowerScap.Engine.Oval
             };
             if (shell.Equals("powershell", StringComparison.OrdinalIgnoreCase))
             {
-                psi.FileName = "powershell.exe";
-                psi.Arguments = "-NoProfile -NonInteractive -Command " + Quote(command);
+                // -EncodedCommand avoids every quoting problem with content-supplied scripts.
+                psi.FileName = Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe");
+                psi.Arguments = "-NoProfile -NonInteractive -EncodedCommand " + Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(command));
             }
             else
             {
@@ -270,8 +273,6 @@ namespace PowerScap.Engine.Oval
                 exit = p.ExitCode;
             }
         }
-
-        static string Quote(string s) { return "\"" + s.Replace("\"", "\\\"") + "\""; }
     }
 
     /// <summary>windows-def ntuser_object → ntuser_item: the key/value in every local user profile hive (NTUSER.DAT).</summary>

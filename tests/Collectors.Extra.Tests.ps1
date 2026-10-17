@@ -34,10 +34,19 @@ Describe 'Extra collectors' {
         ($value.Fields | Where-Object { $_.Name -eq 'name' }).Value | Should Be 'Windows'
     }
 
-    It 'shellcommand_object returns one item per matching output line with subexpressions' {
+    It 'shellcommand_object returns one item per command with one stdout_line per matching line' {
         $o = C 'oval:t:obj:shell'
-        ($o.Items | ForEach-Object { $_.Get('subexpression')[0].Value }) -join ',' | Should Be '1,3'
+        $o.Items.Count | Should Be 1
+        @($o.Items[0].Get('stdout_line')).Count | Should Be 2
+        ($o.Items[0].Get('subexpression') | ForEach-Object { $_.Value }) -join ',' | Should Be '1,3'
         $o.Items[0].Get('exit_status')[0].Value | Should Be '0'
+    }
+
+    It 'shellcommand with no matching output still yields the item, without stdout_line' {
+        $ctx2 = New-DefaultContext -Objects '<ind:shellcommand_object id="oval:t:obj:quiet" version="1"><ind:shell>cmd</ind:shell><ind:command>echo nothing</ind:command><ind:pattern>^zzz</ind:pattern></ind:shellcommand_object>'
+        $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:quiet'), $ctx2)
+        $o.Items.Count | Should Be 1
+        @($o.Items[0].Get('stdout_line')).Count | Should Be 0
     }
 
     It 'ntuser_object reads the value from the current user hive' {
@@ -48,7 +57,7 @@ Describe 'Extra collectors' {
     }
 
     It 'shellcommand keeps blank lines but not the trailing newline' {
-        (C 'oval:t:obj:lines').Items.Count | Should Be 3
+        @((C 'oval:t:obj:lines').Items[0].Get('stdout_line')).Count | Should Be 3
     }
 
     It 'wmi57 with no rows is DoesNotExist' {
