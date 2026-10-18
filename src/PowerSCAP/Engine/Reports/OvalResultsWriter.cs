@@ -118,10 +118,12 @@ namespace PowerScap.Engine.Reports
             if (target != null)
                 foreach (var a in target.Addresses)
                 {
+                    string name, mac;
+                    Adapter(a, out name, out mac);
                     var i = El(doc, ifaces, "interface", ScNs);
-                    Text(doc, i, "interface_name", ScNs, "");
+                    Text(doc, i, "interface_name", ScNs, name);
                     Text(doc, i, "ip_address", ScNs, a);
-                    Text(doc, i, "mac_address", ScNs, "");
+                    Text(doc, i, "mac_address", ScNs, mac);
                 }
 
             var collected = El(doc, sc, "collected_objects", ScNs);
@@ -145,6 +147,25 @@ namespace PowerScap.Engine.Reports
             var data = El(doc, sc, "system_data", ScNs);
             foreach (var i in items.Values.OrderBy(x => x.Id)) data.AppendChild(Item(doc, i));
             return doc;
+        }
+
+        /// <summary>The adapter that holds an IPv4 address: its name and MAC (XX-XX-XX-XX-XX-XX).</summary>
+        static void Adapter(string ip, out string name, out string mac)
+        {
+            name = "unknown";
+            mac = "00-00-00-00-00-00";
+            try
+            {
+                foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (!nic.GetIPProperties().UnicastAddresses.Any(u => u.Address.ToString() == ip)) continue;
+                    name = nic.Name;
+                    var bytes = nic.GetPhysicalAddress().GetAddressBytes();
+                    if (bytes.Length == 6) mac = string.Join("-", bytes.Select(b => b.ToString("X2", CultureInfo.InvariantCulture)));
+                    return;
+                }
+            }
+            catch (System.Net.NetworkInformation.NetworkInformationException) { }
         }
 
         static XmlElement Item(XmlDocument doc, OvalItem i)

@@ -32,6 +32,15 @@ Describe 'OVAL results and ARF' -Tag Content {
         @($tested | Where-Object { -not $itemIds.ContainsKey($_.GetAttribute('item_id')) }).Count | Should Be 0
     }
 
+    It 'names each interface with its adapter and MAC address' {
+        $ifaces = $doc.SelectNodes('//sc:system_info/sc:interfaces/sc:interface', $ns)
+        $ifaces.Count | Should Be $target.Addresses.Count
+        foreach ($i in $ifaces) {
+            $i.SelectSingleNode('sc:interface_name', $ns).InnerText | Should Not BeNullOrEmpty
+            $i.SelectSingleNode('sc:mac_address', $ns).InnerText | Should Match '^([0-9A-F]{2}-){5}[0-9A-F]{2}$'
+        }
+    }
+
     It 'writes registry items in the windows system-characteristics namespace' {
         $reg = $doc.GetElementsByTagName('registry_item', 'http://oval.mitre.org/XMLSchema/oval-system-characteristics-5#windows')
         $reg.Count -gt 0 | Should Be $true

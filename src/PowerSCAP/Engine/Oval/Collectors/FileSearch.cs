@@ -18,7 +18,14 @@ namespace PowerScap.Engine.Oval
     /// </summary>
     public static class FileSearch
     {
+        /// <summary>Each file or directory once, even when filepath/path values name it twice (Windows paths ignore case).</summary>
         public static IList<FileHit> Find(ObjectSpec spec, FileSystemCache fs, IList<string> messages)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            return FindAll(spec, fs, messages).Where(h => seen.Add(h.FullPath)).ToList();
+        }
+
+        static IList<FileHit> FindAll(ObjectSpec spec, FileSystemCache fs, IList<string> messages)
         {
             EntityCriterion filepathC, pathC, filenameC;
             spec.Entities.TryGetValue("filepath", out filepathC);

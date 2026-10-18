@@ -95,6 +95,14 @@ Describe 'File collectors' {
         $res.Items[0].Get('value_of')[0].Status.ToString() | Should Be 'DoesNotExist'
     }
 
+    It 'collects a file once even when the filepath values repeat it' {
+        $vars = '<constant_variable id="oval:t:var:dup" version="1" datatype="string" comment="dup"><value>' + $r + '\app.exe.config</value><value>' + $r + '\APP.exe.config</value></constant_variable>'
+        $o = '<ind:xmlfilecontent_object id="oval:t:obj:dup" version="1"><ind:filepath var_ref="oval:t:var:dup"/><ind:xpath>/configuration/runtime/loadFromRemoteSources/@enabled</ind:xpath></ind:xmlfilecontent_object>'
+        $ctx2 = New-DefaultContext -Objects $o -Variables $vars
+        $res = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:dup'), $ctx2)
+        $res.Items.Count | Should Be 1
+    }
+
     It 'xmlfilecontent skips files that are not XML (no item, object not in error)' {
         $o = C 'oval:t:obj:xmlall'
         $o.Flag.ToString() | Should Be 'Complete'
