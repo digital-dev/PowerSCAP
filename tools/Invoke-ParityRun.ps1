@@ -18,6 +18,8 @@
 param(
     [Parameter(ParameterSetName = 'Run', Mandatory)][switch]$RunScc,
     [Parameter(ParameterSetName = 'Run')][string]$SccPath = (Join-Path $env:ProgramFiles 'SCAP Compliance Checker 5.15\cscc.exe'),
+    # Scans per benchmark until SCC writes results (it crashes intermittently on some machines).
+    [Parameter(ParameterSetName = 'Run')][ValidateRange(1, 10)][int]$SccAttempts = 3,
     [Parameter(ParameterSetName = 'Session')][string]$SccSession,
     [string]$OutputPath = (Join-Path (Split-Path $PSScriptRoot -Parent) 'out\parity'),
     [string]$CacheRoot,
@@ -62,25 +64,33 @@ if ($RunScc) {
     $backup = Join-Path $runDir 'scc-options-backup.xml'
     Copy-Item -LiteralPath $optionsFile -Destination $backup
     $crashed = @(); $empty = @()
+    $stderrLog = Join-Path $runDir 'scc-stderr.log'
     try {
+        # SCC writes Perl warnings to stderr; under 'Stop' PowerShell would treat them as fatal. Keep them in a log instead.
+        $ErrorActionPreference = 'Continue'
         foreach ($id in $wanted) {
-            & $SccPath -da | Out-Null
-            & $SccPath -eb $id | Out-Null
-            $before = @(Get-ChildItem -LiteralPath $sccRoot -Recurse -Filter '*XCCDF-Results*.xml').Count
-            $sw = [Diagnostics.Stopwatch]::StartNew()
-            & $SccPath -u $sccRoot -q
-            $code = $LASTEXITCODE
-            $made = @(Get-ChildItem -LiteralPath $sccRoot -Recurse -Filter '*XCCDF-Results*.xml').Count - $before
-            Write-Host ('SCC {0,-45} {1,5:N0}s  exit code {2}  results {3}' -f $id, $sw.Elapsed.TotalSeconds, $code, $made)
-            if ($code -lt 0) { $crashed += $id } elseif ($made -eq 0) { $empty += $id }
+            & $SccPath -da 2>> $stderrLog | Out-Null
+            & $SccPath -eb $id 2>> $stderrLog | Out-Null
+            # SCC 5.15 crashes intermittently on the reference machine (access violations in its Perl engine): retry.
+            for ($attempt = 1; $attempt -le $SccAttempts; $attempt++) {
+                $before = @(Get-ChildItem -LiteralPath $sccRoot -Recurse -Filter '*XCCDF-Results*.xml').Count
+                $sw = [Diagnostics.Stopwatch]::StartNew()
+                & $SccPath -u $sccRoot -q 2>> $stderrLog | Out-Null
+                $code = $LASTEXITCODE
+                $made = @(Get-ChildItem -LiteralPath $sccRoot -Recurse -Filter '*XCCDF-Results*.xml').Count - $before
+                Write-Host ('SCC {0,-45} try {1}  {2,5:N0}s  exit code {3}  results {4}' -f $id, $attempt, $sw.Elapsed.TotalSeconds, $code, $made)
+                if ($made -gt 0) { break }
+            }
+            if ($made -eq 0) { if ($code -lt 0) { $crashed += $id } else { $empty += $id } }
         }
     }
     finally {
+        $ErrorActionPreference = 'Stop'
         # SCC's own options file goes back exactly as it was, whatever happened above.
         Copy-Item -LiteralPath $backup -Destination $optionsFile -Force
         Write-Host "Restored SCC's options file."
     }
-    if ($crashed) { Write-Warning ('SCC crashed while scanning: ' + ($crashed -join ', ') + '. Those benchmarks may have no SCC results to compare.') }
+    if ($crashed) { Write-Warning ('SCC crashed on every attempt for: ' + ($crashed -join ', ') + '. Those benchmarks are not compared.') }
     if ($empty) {
         Write-Warning ('SCC wrote no results for: ' + ($empty -join ', ') + '. Its reason is in the Logs folder of each session under ' + $sccRoot)
         Get-ChildItem -LiteralPath $sccRoot -Recurse -Filter '*Error_Log*.txt' | Select-String -Pattern 'ERROR' | Select-Object -First 3 | ForEach-Object { Write-Host ('  ' + $_.Line.Trim()) }
