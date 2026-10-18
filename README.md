@@ -23,6 +23,24 @@ Test-PowerScapBenchmarkUpdate                                      # newer relea
 - Scans never start PowerShell or cmd: commands named in SCAP content are answered natively
   (`tools/Get-CommandInventory.ps1` lists any that are not).
 
+## Outputs
+
+Each benchmark scanned writes, into `-OutputPath`:
+
+| File | What |
+|---|---|
+| `*_All-Settings.html` | Every rule: result, STIG text, and the OVAL evaluation (expected vs. collected values) |
+| `*_Non-Compliance.html` | Only failed, error and unknown rules |
+| `*_Checklist.cklb` | STIG Viewer 3 checklist (same fields and statuses as SCC's) |
+| `*_XCCDF-Results.xml` | XCCDF 1.2 results (always written) |
+| `*_OVAL-Results.xml`, `*_ARF.xml` | With `-Formats Oval,Arf` or `-Formats All` |
+
+Scanning several benchmarks in one call (pipeline) also writes `<host>_<time>_Summary.html` linking them all.
+
+```powershell
+Get-PowerScapBenchmark -Latest | Invoke-PowerScapScan -OutputPath D:\PowerSCAP-Results
+```
+
 ## Running the tests
 
 Tests use the Pester 3.4 that ships with Windows and always run under Windows PowerShell 5.1:

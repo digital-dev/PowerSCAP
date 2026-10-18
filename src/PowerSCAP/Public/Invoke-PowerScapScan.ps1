@@ -1,7 +1,7 @@
 function Invoke-PowerScapScan {
     <#
     .SYNOPSIS
-        Scans the local machine with one SCAP benchmark and writes XCCDF 1.2 results.
+        Scans the local machine with SCAP benchmarks and writes results, reports and STIG Viewer checklists.
     .PARAMETER ContentPath
         SCAP source data stream (.xml or .zip) or standalone XCCDF benchmark.
     .PARAMETER Benchmark
@@ -15,6 +15,10 @@ function Invoke-PowerScapScan {
     .PARAMETER Collectors
         Collector set to reuse across scans (its folder and registry listings are shared). Benchmarks piped
         into one call share a set automatically.
+    .PARAMETER Formats
+        Outputs besides the XCCDF results (always written): Html (All-Settings and Non-Compliance reports),
+        Cklb (STIG Viewer checklist), Oval (OVAL results), Arf (Asset Reporting Format), or All.
+        Default: Html, Cklb. Scanning several benchmarks in one call also writes a summary page.
     .PARAMETER AllowUnelevated
         Runs without administrator rights. Checks that need elevation will report errors; intended for testing.
     .EXAMPLE
@@ -24,7 +28,7 @@ function Invoke-PowerScapScan {
     #>
     [CmdletBinding(DefaultParameterSetName = 'Path')]
     param(
-        [Parameter(Mandatory, ParameterSetName = 'Path')][string]$ContentPath,
+        [Parameter(Mandatory, ParameterSetName = 'Path', ValueFromPipelineByPropertyName)][Alias('FullName')][string]$ContentPath,
         [Parameter(Mandatory, ParameterSetName = 'Benchmark', ValueFromPipeline)][PowerScap.Engine.Cache.CacheEntry]$Benchmark,
         [Parameter(ParameterSetName = 'Benchmark')][string]$CacheRoot,
         [string]$ProfileId,
@@ -32,6 +36,7 @@ function Invoke-PowerScapScan {
         [switch]$PassThru,
         [switch]$AllowInvalidSignature,
         [PowerScap.Engine.Oval.CollectorRegistry]$Collectors,
+        [ValidateSet('Html', 'Cklb', 'Oval', 'Arf', 'All')][string[]]$Formats = @('Html', 'Cklb'),
         [switch]$AllowUnelevated
     )
 
@@ -44,6 +49,7 @@ function Invoke-PowerScapScan {
         $requestedProfile = $ProfileId
         # One collector set per call: each folder and registry key is read once, however many benchmarks need it.
         if (-not $Collectors) { $Collectors = [PowerScap.Engine.Oval.CollectorRegistry]::CreateDefault() }
+        $reports = New-Object 'System.Collections.Generic.List[PowerScap.Engine.Reports.BenchmarkReport]'
     }
 
     process {
@@ -71,11 +77,51 @@ function Invoke-PowerScapScan {
         $scores = [PowerScap.Engine.Xccdf.Scoring]::Compute($profile, $results)
         $target = [PowerScap.Engine.Xccdf.TargetInfo]::Collect()
 
+        $end = Get-Date
         $short = $content.BenchmarkId -replace '^xccdf_.*?_benchmark_', ''
         $short = ($short -replace '[^\w\-\.]', '_')
-        $file = Join-Path $OutputPath ('{0}_{1}_{2:yyyyMMdd_HHmmss}_XCCDF-Results.xml' -f $target.HostName, $short, $start)
-        [PowerScap.Engine.Xccdf.ResultsWriter]::WriteXccdf($content, $profile, $results, $scores, $target, $file, $start, (Get-Date), $remarks)
+        if (-not (Test-Path -LiteralPath $OutputPath)) { New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null }
+        # Never overwrite an earlier run that landed in the same second.
+        $stem = Join-Path $OutputPath ('{0}_{1}_{2:yyyyMMdd_HHmmss}' -f $target.HostName, $short, $start)
+        $n = 1; $base = $stem
+        while (Test-Path -LiteralPath "${stem}_XCCDF-Results.xml") { $n++; $stem = "${base}_$n" }
+
+        $file = "${stem}_XCCDF-Results.xml"
+        [PowerScap.Engine.Xccdf.ResultsWriter]::WriteXccdf($content, $profile, $results, $scores, $target, $file, $start, $end, $remarks)
         Write-Verbose "Results written to $file"
+
+        $report = [PowerScap.Engine.Reports.BenchmarkReport]::Build($content, $profile, $results, $scores, $target, $start, $end)
+        $report.Signature = "$signature"
+        $report.Files['XCCDF'] = $file
+        $want = @($Formats | ForEach-Object { $_.ToLowerInvariant() })
+        $all = $want -contains 'all'
+        if ($all -or $want -contains 'html') {
+            $report.Files['All-Settings'] = "${stem}_All-Settings.html"
+            $report.Files['Non-Compliance'] = "${stem}_Non-Compliance.html"
+            [PowerScap.Engine.Reports.HtmlReport]::Write($report, $report.Files['All-Settings'], $false)
+            [PowerScap.Engine.Reports.HtmlReport]::Write($report, $report.Files['Non-Compliance'], $true)
+        }
+        if ($all -or $want -contains 'cklb') {
+            $report.Files['Checklist'] = "${stem}_Checklist.cklb"
+            [PowerScap.Engine.Reports.CklbWriter]::Write([PowerScap.Engine.Reports.BenchmarkReport[]]@($report), $report.Files['Checklist'])
+        }
+        if ($all -or $want -contains 'oval' -or $want -contains 'arf') {
+            $oval = [PowerScap.Engine.Reports.OvalResultsWriter]::Build($results, $content, $target, $end)
+            if ($all -or $want -contains 'oval') {
+                $i = 0
+                foreach ($kv in $oval.GetEnumerator()) {
+                    $i++
+                    $name = if ($oval.Count -gt 1) { "${stem}_OVAL-Results-$i.xml" } else { "${stem}_OVAL-Results.xml" }
+                    $kv.Value.Save($name)
+                    $report.Files["OVAL$(if ($oval.Count -gt 1) { "-$i" })"] = $name
+                }
+            }
+            if ($all -or $want -contains 'arf') {
+                $report.Files['ARF'] = "${stem}_ARF.xml"
+                [PowerScap.Engine.Reports.ArfWriter]::Write($report, $file, $oval, $report.Files['ARF'])
+            }
+        }
+        $reports.Add($report)
 
         if ($PassThru) {
             [pscustomobject]@{
@@ -85,7 +131,18 @@ function Invoke-PowerScapScan {
                 Scores      = $scores
                 Results     = $results
                 Path        = $file
+                Report      = $report
+                Files       = $report.Files
             }
+        }
+    }
+
+    end {
+        if ($reports.Count -gt 1) {
+            $stamp = '{0:yyyyMMdd_HHmmss}' -f $reports[0].Start
+            $summary = Join-Path $OutputPath ('{0}_{1}_Summary.html' -f $reports[0].Target.HostName, $stamp)
+            [PowerScap.Engine.Reports.SummaryReport]::Write($reports, $summary)
+            Write-Verbose "Summary written to $summary"
         }
     }
 }

@@ -93,7 +93,8 @@ namespace PowerScap.Engine.Reports
 
         public int Count(XccdfResult r) { return Rules.Count(x => x.Result == r); }
 
-        public int Open(string cat) { return Rules.Count(x => x.Cat == cat && x.IsNonCompliant); }
+        /// <summary>Open findings (fail) in a category, as STIG Viewer counts them; errors are not reviewed, not open.</summary>
+        public int Open(string cat) { return Rules.Count(x => x.Cat == cat && x.Result == XccdfResult.Fail); }
 
         public static BenchmarkReport Build(ScapContent content, ResolvedProfile profile, List<RuleResult> results, List<Score> scores,
             TargetInfo target, DateTime start, DateTime end)

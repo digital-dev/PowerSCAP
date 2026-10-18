@@ -194,7 +194,7 @@ namespace PowerScap.Engine.Reports
             return string.IsNullOrEmpty(s) ? "" : WebUtility.HtmlEncode(s);
         }
 
-        const string Css = @"
+        internal const string Css = @"
 :root{--bg:#0e1116;--panel:#161b22;--panel2:#1c2330;--line:#2a3240;--text:#e6edf3;--muted:#8b97a7;--accent:#2dd4bf;
 --pass:#3fb950;--fail:#f85149;--warn:#d29922;--na:#6e7681;--info:#58a6ff;color-scheme:dark}
 @media (prefers-color-scheme: light){:root:not([data-theme=dark]){--bg:#f6f8fa;--panel:#fff;--panel2:#f0f3f6;--line:#d0d7de;--text:#1f2328;
