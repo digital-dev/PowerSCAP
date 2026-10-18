@@ -61,6 +61,17 @@ Describe 'Content cmdlets' {
         $scan.Signature.State.ToString() | Should Be 'Unsigned'
     }
 
+    It 'scans cached benchmarks piped in exactly as the README shows (no -CacheRoot)' {
+        $old = $env:POWERSCAP_CACHEDIR
+        $env:POWERSCAP_CACHEDIR = $cacheRoot
+        try {
+            $scans = @(Get-PowerScapBenchmark -Latest | Where-Object { $_.Imported } | Invoke-PowerScapScan -ProfileId 'xccdf_test_profile_p1' -OutputPath $out -AllowUnelevated -PassThru)
+            $scans.Count | Should Be 1
+            $scans[0].Results.Count -gt 0 | Should Be $true
+        }
+        finally { $env:POWERSCAP_CACHEDIR = $old }
+    }
+
     It 'refuses tampered content and records an override' {
         $cert = New-SelfSignedCertificate -Subject 'CN=PowerSCAP Test Signer' -CertStoreLocation Cert:\CurrentUser\My -KeyExportPolicy Exportable -KeySpec Signature
         try {

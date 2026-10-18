@@ -26,7 +26,8 @@ function Invoke-PowerScapScan {
     .EXAMPLE
         Get-PowerScapBenchmark -Latest | Invoke-PowerScapScan -OutputPath .\out
     #>
-    [CmdletBinding(DefaultParameterSetName = 'Path')]
+    # Default to the cached-benchmark set: piped cache entries bind by value; files bind to -ContentPath by FullName.
+    [CmdletBinding(DefaultParameterSetName = 'Benchmark')]
     param(
         [Parameter(Mandatory, ParameterSetName = 'Path', ValueFromPipelineByPropertyName)][Alias('FullName')][string]$ContentPath,
         [Parameter(Mandatory, ParameterSetName = 'Benchmark', ValueFromPipeline)][PowerScap.Engine.Cache.CacheEntry]$Benchmark,
