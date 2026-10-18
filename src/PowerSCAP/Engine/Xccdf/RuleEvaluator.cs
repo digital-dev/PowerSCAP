@@ -34,6 +34,13 @@ namespace PowerScap.Engine.Xccdf
     {
         public static List<RuleResult> Evaluate(ScapContent content, ResolvedProfile profile, CollectorRegistry collectors, IProgress<ScanProgress> progress)
         {
+            return Evaluate(content, profile, collectors, progress, System.Threading.CancellationToken.None);
+        }
+
+        /// <summary>Cancellation is checked between rules.</summary>
+        public static List<RuleResult> Evaluate(ScapContent content, ResolvedProfile profile, CollectorRegistry collectors, IProgress<ScanProgress> progress,
+            System.Threading.CancellationToken cancel)
+        {
             collectors = collectors ?? CollectorRegistry.CreateDefault();
             var cpe = new CpeApplicability(content, collectors);
             var externalValues = CollectExports(profile);
@@ -43,6 +50,7 @@ namespace PowerScap.Engine.Xccdf
 
             foreach (var rule in profile.Rules)
             {
+                cancel.ThrowIfCancellationRequested();
                 if (progress != null) progress.Report(new ScanProgress { Done = done, Total = total, CurrentRuleId = rule.RuleId });
                 results.AddRange(EvaluateRule(content, rule, cpe, collectors, externalValues, evaluators));
                 done++;

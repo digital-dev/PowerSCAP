@@ -1,5 +1,6 @@
 $repo = Split-Path $PSScriptRoot -Parent
 Import-Module (Join-Path $repo 'src\PowerSCAP') -Force
+$env:POWERSCAP_HISTORYDIR = Join-Path $env:TEMP 'powerscap-test-history'
 
 $mini = Join-Path $PSScriptRoot 'fixtures\content\mini-ds.xml'
 

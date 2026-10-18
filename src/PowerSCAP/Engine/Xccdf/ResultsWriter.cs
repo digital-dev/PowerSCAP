@@ -16,7 +16,7 @@ namespace PowerScap.Engine.Xccdf
     {
         public string HostName { get; set; }
         public string Fqdn { get; set; }
-        public List<string> Addresses { get; private set; }
+        public List<string> Addresses { get; set; }
         public string OsName { get; set; }
         public string OsVersion { get; set; }
         public string Identity { get; set; }

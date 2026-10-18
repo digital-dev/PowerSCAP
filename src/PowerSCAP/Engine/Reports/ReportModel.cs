@@ -29,8 +29,8 @@ namespace PowerScap.Engine.Reports
         public string Discussion { get; set; }
         public string CheckText { get; set; }
         public string FixText { get; set; }
-        public List<string> Ccis { get; private set; }
-        public List<string> LegacyIds { get; private set; }
+        public List<string> Ccis { get; set; }
+        public List<string> LegacyIds { get; set; }
         public string DpmsTarget { get; set; }
         public string DpmsIdentifier { get; set; }
         public XccdfResult Result { get; set; }
@@ -40,7 +40,7 @@ namespace PowerScap.Engine.Reports
         public string CheckHref { get; set; }
         public string CheckName { get; set; }
         /// <summary>The tagged fields of the STIG description (VulnDiscussion, FalsePositives, Documentable, ...).</summary>
-        public Dictionary<string, string> DescriptionTags { get; private set; }
+        public Dictionary<string, string> DescriptionTags { get; set; }
 
         public string ResultText { get { return ResultsWriter.ResultText(Result); } }
 
@@ -75,12 +75,12 @@ namespace PowerScap.Engine.Reports
         public DateTime Start { get; set; }
         public DateTime End { get; set; }
         public TargetInfo Target { get; set; }
-        public List<Score> Scores { get; private set; }
-        public List<RuleReport> Rules { get; private set; }
+        public List<Score> Scores { get; set; }
+        public List<RuleReport> Rules { get; set; }
         public string ContentFile { get; set; }
         public string Signature { get; set; }
         /// <summary>Output files written for this benchmark, by kind (All-Settings, Checklist, ...).</summary>
-        public Dictionary<string, string> Files { get; private set; }
+        public Dictionary<string, string> Files { get; set; }
 
         public double DefaultScore
         {

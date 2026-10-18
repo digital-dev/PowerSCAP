@@ -1,5 +1,6 @@
 $repo = Split-Path $PSScriptRoot -Parent
 Import-Module (Join-Path $repo 'src\PowerSCAP') -Force
+$env:POWERSCAP_HISTORYDIR = Join-Path $env:TEMP 'powerscap-test-history'
 . (Join-Path $PSScriptRoot 'TestHelpers.ps1')
 Add-Type -AssemblyName System.Security
 
