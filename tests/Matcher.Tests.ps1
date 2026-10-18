@@ -55,6 +55,16 @@ Describe 'BenchmarkMatcher' {
         @([PowerScap.Engine.Profile.BenchmarkMatcher]::Match((New-Profile 'google chrome'), $catalog)).Count | Should Be 1
     }
 
+    It 'matches NCP targets that carry stray spaces or other casing' {
+        # NCP spells the Server 2025 target "Microsoft Windows server 2025 " (lower-case s, trailing space).
+        $c = New-Object PowerScap.Engine.Ncp.NcpChecklist
+        $c.Id = 9001; $c.Name = 'Microsoft Windows Server 2025'
+        $c.Targets.Add('Microsoft Windows server 2025 ')
+        $p = New-Profile ([PowerScap.Engine.Profile.SystemProfile]::OperatingSystemTarget('Microsoft Windows Server 2025 Datacenter'))
+        [PowerScap.Engine.Profile.BenchmarkMatcher]::ProductFor($p, $c.Targets) | Should Not BeNullOrEmpty
+        [PowerScap.Engine.Profile.BenchmarkMatcher]::ProductFor((New-Profile 'Microsoft Windows Server 2022'), $c.Targets) | Should BeNullOrEmpty
+    }
+
     It 'matches nothing for products without content' {
         @([PowerScap.Engine.Profile.BenchmarkMatcher]::Match((New-Profile 'Microsoft Windows 10'), $catalog)).Count | Should Be 0
     }

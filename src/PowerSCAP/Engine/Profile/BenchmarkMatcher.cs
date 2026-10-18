@@ -30,7 +30,7 @@ namespace PowerScap.Engine.Profile
 
         public static bool IsOperatingSystem(string target)
         {
-            return !string.IsNullOrEmpty(target) && OsTarget.IsMatch(target);
+            return !string.IsNullOrEmpty(target) && OsTarget.IsMatch(target.Trim());
         }
 
         public static IList<BenchmarkMatch> Match(SystemProfile profile, IList<NcpChecklist> catalog)
@@ -51,12 +51,14 @@ namespace PowerScap.Engine.Profile
         public static DetectedProduct ProductFor(SystemProfile profile, IList<string> targets)
         {
             if (profile == null || targets == null) return null;
-            var hostOs = new HashSet<string>(profile.Products.Where(p => IsOperatingSystem(p.NcpTarget)).Select(p => p.NcpTarget), StringComparer.OrdinalIgnoreCase);
+            // NCP spellings vary in case and spacing ("Microsoft Windows server 2025 " ends in a space): compare trimmed.
+            var hostOs = new HashSet<string>(profile.Products.Where(p => IsOperatingSystem(p.NcpTarget)).Select(p => p.NcpTarget.Trim()), StringComparer.OrdinalIgnoreCase);
             // NCP target lists are loose: the Windows 2008 STIG lists "Microsoft Windows Defender". A checklist
             // that targets an operating system is for that operating system only.
-            var osTargets = targets.Where(IsOperatingSystem).ToList();
+            var osTargets = targets.Where(IsOperatingSystem).Select(t => t.Trim()).ToList();
             if (osTargets.Count > 0 && !osTargets.Any(hostOs.Contains)) return null;
-            return profile.Products.FirstOrDefault(p => targets.Any(t => string.Equals(t, p.NcpTarget, StringComparison.OrdinalIgnoreCase)));
+            return profile.Products.FirstOrDefault(p => p.NcpTarget != null &&
+                targets.Any(t => t != null && string.Equals(t.Trim(), p.NcpTarget.Trim(), StringComparison.OrdinalIgnoreCase)));
         }
     }
 }
