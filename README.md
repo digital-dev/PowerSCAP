@@ -27,7 +27,7 @@ Two rules drive the project:
 - **SCAP 1.2-1.4 data streams:** XCCDF 1.2 and OVAL 5.11.2, with profiles, CPE applicability, complex checks,
   the four standard scoring models and every OVAL object type the DISA and NIWC Windows benchmarks use.
 - **Content from NIST's National Checklist Program:**
-  - It finds the benchmarks for the products installed on this machine.
+  - It finds the benchmarks for the products installed on this machine ([what it detects](#what-it-detects)).
   - It prefers NIWC enhanced SCAP 1.4 content, with DISA SCAP 1.3 as the fallback.
   - Every file's XML signature is checked.
   - Content is kept in a versioned local cache that works offline.
@@ -43,8 +43,10 @@ Two rules drive the project:
   - A score tile per benchmark and a findings list you can filter.
   - Rule detail with expected vs. collected values.
   - Scan history with "changed since previous scan".
-- **Fast:** all seven benchmarks for a typical Windows 11 workstation scan in about a minute and a half.
-  File and registry trees are read once per scan, however many checks walk them.
+- **Fast and stable:** all seven benchmarks for a typical Windows 11 workstation scan in about a minute and a half.
+  File and registry trees are read once per scan, however many checks walk them. In the paired run on the reference
+  machine, PowerSCAP scanned six benchmarks in under 30 seconds; SCC 5.15 took about 11 minutes for the same six
+  (counting only its successful attempts) and crashed on Windows 11 every time.
 - **No script execution while scanning:** some SCAP content embeds PowerShell or cmd commands. PowerSCAP answers
   each of them in native C# instead of starting a shell, so a scan launches no PowerShell or cmd processes for
   antivirus to flag ([why](CODEBASE_MAP.md#no-script-execution)).
@@ -90,6 +92,22 @@ Get-PowerScapBenchmark -Latest | Invoke-PowerScapScan -OutputPath D:\PowerSCAP-R
 
 `Get-Help <command> -Full` documents every parameter.
 
+### What it detects
+
+*Find for this system* (or `Find-PowerScapBenchmark -MatchSystem`) pre-selects the NCP checklists for:
+
+| Area | Products |
+|---|---|
+| Operating system | Windows 10 and 11; Windows Server 2008 R2, 2012/2012 R2, 2016, 2019, 2022, 2025 |
+| Browsers | Edge, Chrome, Firefox; Internet Explorer 11 (not on Windows 11, where it is retired) |
+| Windows components | .NET Framework 4, Defender Antivirus, Defender Firewall |
+| Office | Microsoft 365 Apps for enterprise and Office Professional Plus 2019/2021/2024 (the Office 365 ProPlus STIG); Office 2013 |
+| Servers | IIS 10 and 8.5, SQL Server 2016 and 2022, Exchange 2019, Active Directory domain controllers, Apache 2.4 |
+| Other | Adobe Acrobat Reader and Acrobat Pro, McAfee VirusScan Enterprise 8.8 |
+
+Detection is a convenience. Each benchmark's own platform checks decide whether it applies when it is scanned
+(see [How results are decided](#how-results-are-decided)).
+
 ## The desktop app
 
 | Page | What it does |
@@ -97,7 +115,7 @@ Get-PowerScapBenchmark -Latest | Invoke-PowerScapScan -OutputPath D:\PowerSCAP-R
 | **System** | The detected machine profile |
 | **Content** | Cached benchmarks with *Detected* and *Update available* badges and a profile per benchmark. Also NCP search, *Find for this system*, downloads and local import |
 | **Scan** | Benchmarks run one after another in the background, with per-benchmark progress and Cancel. A cancelled scan writes nothing |
-| **Results** | Score tiles, findings filtered by status, severity, source and text, *changed since previous scan*, rule detail, and buttons that open the reports and checklist |
+| **Results** | Score tiles, findings filtered by status, severity, source and text, *changed since previous scan*, rule detail, and buttons that open the reports and checklist (the checklist opens in STIG Viewer when it is installed, otherwise Explorer shows the file) |
 | **Settings** | Theme, results and cache folders, update check at launch, preferred content (SCAP 1.4 or 1.3), outputs |
 
 ![Content page, light theme](docs/images/content-light.png)
@@ -123,6 +141,9 @@ Scanning several benchmarks in one call also writes `<host>_<time>_Summary.html`
 | `%LOCALAPPDATA%\PowerSCAP\settings.json` | App settings | `$env:POWERSCAP_SETTINGS` |
 | `%LOCALAPPDATA%\PowerSCAP\bin` | Compiled engine and app | `$env:POWERSCAP_BINDIR` |
 
+The content cache and history are shared by everyone on the machine. Once an elevated session has created them,
+downloads and imports need an elevated session too; PowerSCAP says so and leaves the cache unchanged.
+
 ## How results are decided
 
 PowerSCAP follows the standards, not its own judgment:
@@ -134,6 +155,11 @@ PowerSCAP follows the standards, not its own judgment:
 Where a strict reading of the content contradicts what the STIG itself calls a finding, PowerSCAP reports what
 the STIG says and documents the decision in [docs/parity.md](docs/parity.md). Rules the content leaves manual
 stay *Not Reviewed*, as in any validated scanner.
+
+A benchmark decides for itself whether it applies to the machine (its CPE platform checks). When it does not,
+every rule is *Not Applicable*, as SCC reports it. For example, the Office 365 ProPlus STIG covers Microsoft 365 Apps
+for enterprise and Office Professional Plus, so on Microsoft 365 Family, Personal or Business every rule is Not
+Applicable.
 
 When a check cannot be collected, its result is *error* and the message says why. For example, antivirus
 self-protection may deny reads of its own registry keys. PowerSCAP never works around such a block.
@@ -156,8 +182,9 @@ powershell -NoProfile -File build\Invoke-Tests.ps1 -ExcludeTag Admin,Slow,Online
 
 Useful tools:
 
-- `tools\Invoke-ParityRun.ps1 -RunScc` runs SCC's command-line scanner, then PowerSCAP on the same benchmarks back to
-  back, and diffs every rule. With `-SccSession` it compares against an existing SCC session instead.
+- `tools\Invoke-ParityRun.ps1 -RunScc` (elevated) runs SCC's command-line scanner one benchmark at a time, retrying
+  when SCC crashes, then PowerSCAP on the same benchmark versions and profiles, and diffs every rule. SCC's options
+  file is restored afterwards. With `-SccSession` it compares against an existing SCC session instead.
 - `tools\Compare-XccdfResults.ps1` diffs any two XCCDF result files.
 - `tools\Get-OvalInventory.ps1` and `tools\Get-CommandInventory.ps1` list OVAL objects and embedded commands
   that the engine does not support yet.
