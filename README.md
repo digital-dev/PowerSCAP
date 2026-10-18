@@ -117,7 +117,7 @@ Detection is a convenience. Each benchmark's own platform checks decide whether 
 | **Content** | Cached benchmarks with *Detected* and *Update available* badges and a profile per benchmark. Also NCP search, *Find for this system*, downloads and local import |
 | **Scan** | Benchmarks run one after another in the background, with per-benchmark progress and Cancel. A cancelled scan writes nothing |
 | **Results** | Score tiles, findings filtered by status, severity, source and text, *changed since previous scan*, rule detail, and buttons that open the HTML reports and the scan's checklist |
-| **Checklists** | A read-only view of STIG Viewer checklists (`.cklb`): every checklist from your scans and results folder in one picker, newest first, plus any file you open (SCC's and STIG Viewer's too). Each STIG's rules with status, finding details and comments, filtered by status, severity and text. Edit checklists in STIG Viewer |
+| **Checklists** | A read-only view of STIG Viewer checklists (`.cklb`): the most recent checklist of each STIG from your scans and results folder in one picker, plus any file you open (SCC's and STIG Viewer's too). Each STIG's rules with status, finding details and comments, filtered by status, severity and text. Edit checklists in STIG Viewer |
 | **Settings** | Theme, results and cache folders, update check at launch, preferred content (SCAP 1.4 or 1.3), outputs |
 
 ![Content page, light theme](docs/images/content-light.png)

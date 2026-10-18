@@ -49,6 +49,8 @@ namespace PowerScap.Engine.Reports
         public string Title { get; set; }
         /// <summary>PowerSCAP, SCC, or Checklist (another tool, such as STIG Viewer).</summary>
         public string Tool { get; set; }
+        /// <summary>The checked machine (target_data host_name), so checklists of different machines are kept apart.</summary>
+        public string HostName { get; set; }
         public DateTime When { get; set; }
 
         public string Label
@@ -64,6 +66,8 @@ namespace PowerScap.Engine.Reports
     {
         static readonly System.Text.RegularExpressions.Regex StigName =
             new System.Text.RegularExpressions.Regex("\"stig_name\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+        static readonly System.Text.RegularExpressions.Regex HostName =
+            new System.Text.RegularExpressions.Regex("\"host_name\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
         static readonly System.Text.RegularExpressions.Regex DocTitle =
             new System.Text.RegularExpressions.Regex("\"title\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
 
@@ -81,6 +85,22 @@ namespace PowerScap.Engine.Reports
             var sb = new StringBuilder(1024);
             uint n = GetLongPathName(full, sb, (uint)sb.Capacity);
             return n > 0 && n < sb.Capacity ? sb.ToString() : full;
+        }
+
+        /// <summary>
+        /// The newest checklist of each STIG per machine and tool (older scans of the same STIG are dropped), plus the
+        /// checklists in <paramref name="keep"/> whatever their age (one the user opened on purpose). Newest first.
+        /// </summary>
+        public static IList<ChecklistListing> Latest(IEnumerable<ChecklistListing> listings, IEnumerable<string> keep)
+        {
+            var wanted = new HashSet<string>((keep ?? new string[0]).Where(k => !string.IsNullOrEmpty(k)).Select(Canonical), StringComparer.OrdinalIgnoreCase);
+            var all = listings.ToList();
+            var newest = all
+                .GroupBy(x => (x.Title + "|" + x.HostName + "|" + x.Tool).ToUpperInvariant())
+                .Select(g => g.OrderByDescending(x => x.When).First());
+            return newest.Concat(all.Where(x => wanted.Contains(x.Path)))
+                .GroupBy(x => x.Path, StringComparer.OrdinalIgnoreCase).Select(g => g.First())
+                .OrderByDescending(x => x.When).ToList();
         }
 
         /// <summary>Every .cklb in the folders (not their subfolders) and the listed files, newest first, each once.</summary>
@@ -122,7 +142,12 @@ namespace PowerScap.Engine.Reports
             string tool = docTitle.IndexOf("PowerSCAP", StringComparison.OrdinalIgnoreCase) >= 0 ? "PowerSCAP"
                 : docTitle.IndexOf("SCC", StringComparison.Ordinal) >= 0 || System.IO.Path.GetFileName(path).IndexOf("_SCC-", StringComparison.OrdinalIgnoreCase) >= 0 ? "SCC"
                 : "Checklist";
-            return new ChecklistListing { Path = Canonical(path), Title = title, Tool = tool, When = File.GetLastWriteTime(path) };
+            var host = HostName.Match(text);
+            return new ChecklistListing
+            {
+                Path = Canonical(path), Title = title, Tool = tool, When = File.GetLastWriteTime(path),
+                HostName = host.Success ? Unescape(host.Groups[1].Value) : ""
+            };
         }
 
         static string Unescape(string jsonString)

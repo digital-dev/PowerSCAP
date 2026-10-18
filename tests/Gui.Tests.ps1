@@ -209,16 +209,23 @@ Describe 'GUI window' -Tag Gui {
         $vm.Checklist.StatusFilter = 'Open'
         @($vm.Checklist.RowsView).Count | Should Be @($vm.Results.Rows | Where-Object Status -eq 'Open').Count
         $vm.Checklist.StatusFilter = 'All'
-        # Both scans' checklists are offered, and the one asked for stays selected.
+        # The benchmark was scanned twice: only the newest checklist is listed, and it is the one shown.
+        Wait-Ui 2
+        $vm.Checklist.Available.Count | Should Be 1
+        $newest = $vm.Checklist.File.Path
+        $vm.Checklist.SelectedListing.Path | Should Be $newest
+
+        # Viewing the older scan's checklist from Results shows it and keeps it in the list.
+        $vm.Page = 'Results'
+        $vm.Results.SelectedRun = $vm.Results.SelectedTile.Runs[1]
         $n = 0
-        while ($vm.Checklist.Available.Count -lt 2 -and $n++ -lt 20) { Wait-Ui 0.25 }
+        while ($vm.Results.IsLoading -and $n++ -lt 20) { Wait-Ui 0.25 }
+        $vm.Results.OpenFileCommand.Execute('Checklist')
+        $n = 0
+        while (($vm.Checklist.IsLoading -or $vm.Checklist.File.Path -eq $newest) -and $n++ -lt 20) { Wait-Ui 0.25 }
+        $vm.Checklist.File.Path | Should Not Be $newest
         $vm.Checklist.Available.Count | Should Be 2
         $vm.Checklist.SelectedListing.Path | Should Be $vm.Checklist.File.Path
-        $other = $vm.Checklist.Available | Where-Object { $_.Path -ne $vm.Checklist.File.Path } | Select-Object -First 1
-        $vm.Checklist.SelectedListing = $other
-        $n = 0
-        while ($vm.Checklist.File.Path -ne $other.Path -and $n++ -lt 20) { Wait-Ui 0.25 }
-        $vm.Checklist.File.Path | Should Be $other.Path
     }
 
     It 'renders every page without binding errors' -Skip:(-not $isSta) {

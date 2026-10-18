@@ -133,6 +133,23 @@ Describe 'CklbReader' {
         @($again | Where-Object { $_.Path -eq $canonical }).Count | Should Be 1
     }
 
+    It 'keeps only the newest checklist of each STIG per machine and tool, plus one opened on purpose' {
+        function L($title, $hostName, $tool, $minutesAgo, $path) {
+            New-Object PowerScap.Engine.Reports.ChecklistListing -Property @{ Title = $title; HostName = $hostName; Tool = $tool; When = (Get-Date).AddMinutes(-$minutesAgo); Path = $path }
+        }
+        $all = [PowerScap.Engine.Reports.ChecklistListing[]]@(
+            (L 'Edge STIG' 'WS01' 'PowerSCAP' 5 'C:\r\edge-new.cklb'),
+            (L 'Edge STIG' 'WS01' 'PowerSCAP' 60 'C:\r\edge-old.cklb'),
+            (L 'Edge STIG' 'WS01' 'SCC' 30 'C:\r\edge-scc.cklb'),
+            (L 'Edge STIG' 'WS02' 'PowerSCAP' 90 'C:\r\edge-ws02.cklb'),
+            (L 'Chrome STIG' 'WS01' 'PowerSCAP' 10 'C:\r\chrome-new.cklb'),
+            (L 'Chrome STIG' 'WS01' 'PowerSCAP' 120 'C:\r\chrome-old.cklb'))
+        $latest = [PowerScap.Engine.Reports.CklbReader]::Latest($all, [string[]]@())
+        @($latest | ForEach-Object { Split-Path $_.Path -Leaf }) -join ',' | Should Be 'edge-new.cklb,chrome-new.cklb,edge-scc.cklb,edge-ws02.cklb'
+        $kept = [PowerScap.Engine.Reports.CklbReader]::Latest($all, [string[]]@('C:\r\chrome-old.cklb'))
+        @($kept | ForEach-Object { Split-Path $_.Path -Leaf }) -join ',' | Should Be 'edge-new.cklb,chrome-new.cklb,edge-scc.cklb,edge-ws02.cklb,chrome-old.cklb'
+    }
+
     It 'says plainly when a file is not a checklist' {
         $bad = Join-Path $work 'bad.cklb'
         Set-Content $bad -Value 'not json' -Encoding ASCII

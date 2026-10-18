@@ -21,7 +21,8 @@ namespace PowerScap.Gui
         ChecklistFile file;
         ChecklistStig stig;
         ChecklistListing listing;
-        bool listed, listingBusy;
+        bool listed, listingBusy, refreshAgain;
+        string refreshSelect;
         string requested;
         RuleRow selectedRow;
         string statusFilter = "All", catFilter = "All", search = "", message, counts;
@@ -68,12 +69,14 @@ namespace PowerScap.Gui
         /// <summary>Finds the checklists in the results folder and in the scan history (off the UI thread).</summary>
         public void RefreshList(string select)
         {
-            if (listingBusy) return;
+            // A request while a refresh runs (a scan finishing during it) is run afterwards, never dropped.
+            if (listingBusy) { refreshAgain = true; refreshSelect = select; return; }
             listed = true;
             listingBusy = true;
             string folder = main.Settings.EffectiveOutputPath;
             string historyRoot = Engine.Scan.ScanHistory.DefaultRoot();
             string extra = file == null ? null : file.Path;
+            string keep = requested;
             Background.Run(() =>
             {
                 var files = new System.Collections.Generic.List<string>();
@@ -97,7 +100,8 @@ namespace PowerScap.Gui
                     }
                     if (cklb != null) files.Add(cklb);
                 }
-                return CklbReader.Find(new[] { folder }, files);
+                // Only the most recent checklist of each STIG; one the user asked for is kept even when older.
+                return CklbReader.Latest(CklbReader.Find(new[] { folder }, files), new[] { extra, keep });
             }, found =>
             {
                 listingBusy = false;
@@ -109,11 +113,20 @@ namespace PowerScap.Gui
                 if (match != null) { listing = match; Raise("SelectedListing"); }
                 else if (requested == null && Available.Count > 0) SelectedListing = Available[0];
                 if (Available.Count == 0 && file == null) Message = "No checklists yet. Scan with the checklist output on, or open a .cklb file.";
+                RefreshPending();
             }, e =>
             {
                 listingBusy = false;
                 main.Status = "Could not list checklists: " + Background.Describe(e);
+                RefreshPending();
             });
+        }
+
+        void RefreshPending()
+        {
+            if (!refreshAgain) return;
+            refreshAgain = false;
+            RefreshList(refreshSelect);
         }
         public ObservableCollection<RuleRow> Rows { get; private set; }
         public ICollectionView RowsView { get; private set; }
@@ -192,12 +205,16 @@ namespace PowerScap.Gui
                 foreach (var s in f.Stigs) Stigs.Add(s);
                 Raise("HasManyStigs");
                 SelectedStig = Stigs.FirstOrDefault();
-                var known = Available.FirstOrDefault(x => string.Equals(x.Path, f.Path, StringComparison.OrdinalIgnoreCase));
-                if (known == null)
+                // The opened file joins the list, which stays "newest per STIG" (this file is kept even when older).
+                var all = Available.ToList();
+                if (!all.Any(x => string.Equals(x.Path, f.Path, StringComparison.OrdinalIgnoreCase)))
                 {
-                    known = CklbReader.Describe(f.Path);
-                    if (known != null) Available.Insert(0, known);
+                    var described = CklbReader.Describe(f.Path);
+                    if (described != null) all.Add(described);
                 }
+                Available.Clear();
+                foreach (var x in CklbReader.Latest(all, new[] { f.Path })) Available.Add(x);
+                var known = Available.FirstOrDefault(x => string.Equals(x.Path, f.Path, StringComparison.OrdinalIgnoreCase));
                 if (known != null) { listing = known; Raise("SelectedListing"); }
                 Message = Stigs.Count == 0 ? "This checklist has no STIGs." : null;
             }, e =>
