@@ -192,13 +192,15 @@ namespace PowerScap.Engine.Profile
         }
 
         /// <summary>
-        /// Microsoft 365 Apps (Click-to-Run "O365..." products: ProPlus, Business, Home and so on) are what the
-        /// "Microsoft Office 365 ProPlus" STIG covers. Perpetual Click-to-Run Office (2019, 2021, 2024) has no NCP SCAP content.
+        /// The Click-to-Run products the "Microsoft Office 365 ProPlus" STIG applies to, using the content's own platform
+        /// test (ProductReleaseIds pattern ".*O365ProPlus.*|.*ProPlus20.+"): Microsoft 365 Apps for enterprise and
+        /// Office Professional Plus 2019/2021/2024. Home, Personal and Business editions are not covered; the
+        /// benchmark reports every rule not applicable on them.
         /// </summary>
         public static string OfficeTarget(string productReleaseIds)
         {
             if (string.IsNullOrEmpty(productReleaseIds)) return null;
-            return productReleaseIds.Split(',').Any(id => id.Trim().StartsWith("O365", StringComparison.OrdinalIgnoreCase))
+            return System.Text.RegularExpressions.Regex.IsMatch(productReleaseIds, "O365ProPlus|ProPlus20.")
                 ? "Microsoft Office 365 ProPlus" : null;
         }
 

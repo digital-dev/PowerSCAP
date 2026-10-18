@@ -31,9 +31,9 @@ Describe 'SystemProfile' {
         $p.DomainJoined | Should Be (Get-CimInstance Win32_ComputerSystem).PartOfDomain
     }
 
-    It 'detects Microsoft 365 Apps when Click-to-Run Office is installed' {
+    It 'detects Office only when the Office 365 ProPlus STIG applies to it (the content''s own platform test)' {
         $ids = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration' -ErrorAction SilentlyContinue).ProductReleaseIds
-        $expected = [bool]($ids -and ($ids -split ',' | Where-Object { $_.Trim() -like 'O365*' }))
+        $expected = [bool]($ids -cmatch '.*O365ProPlus.*|.*ProPlus20.+')
         $targets -contains 'Microsoft Office 365 ProPlus' | Should Be $expected
     }
 
@@ -60,10 +60,14 @@ Describe 'Product detection rules' {
         $S::OperatingSystemTarget($caption) | Should Be $target
     }
 
-    It 'maps Click-to-Run Microsoft 365 products to the Office 365 ProPlus STIG, and only those' {
-        $S::OfficeTarget('O365HomePremRetail') | Should Be 'Microsoft Office 365 ProPlus'
-        $S::OfficeTarget('VisioProRetail,O365ProPlusRetail') | Should Be 'Microsoft Office 365 ProPlus'
-        $S::OfficeTarget('ProPlus2021Volume') | Should BeNullOrEmpty
+    It 'maps the Office products the Office 365 ProPlus STIG covers, and only those' {
+        $S::OfficeTarget('O365ProPlusRetail') | Should Be 'Microsoft Office 365 ProPlus'
+        $S::OfficeTarget('VisioProRetail,O365ProPlusEEANoTeamsRetail') | Should Be 'Microsoft Office 365 ProPlus'
+        $S::OfficeTarget('ProPlus2021Volume') | Should Be 'Microsoft Office 365 ProPlus'
+        $S::OfficeTarget('ProPlus2024Volume') | Should Be 'Microsoft Office 365 ProPlus'
+        # Microsoft 365 Family/Personal and Business: the benchmark's platform test excludes them.
+        $S::OfficeTarget('O365HomePremRetail') | Should BeNullOrEmpty
+        $S::OfficeTarget('O365BusinessRetail') | Should BeNullOrEmpty
         $S::OfficeTarget($null) | Should BeNullOrEmpty
     }
 
