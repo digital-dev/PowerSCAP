@@ -35,6 +35,7 @@ namespace PowerScap.Gui
         public string CheckText { get { return Rule.CheckText; } }
         public string FixText { get { return Rule.FixText; } }
         public string Details { get { return Rule.Details; } }
+        public string Comments { get { return Rule.Comments; } }
         public string XccdfResult { get { return Rule.ResultText; } }
 
         /// <summary>Set when a previous scan of the benchmark had a different status for this rule.</summary>
@@ -351,6 +352,8 @@ namespace PowerScap.Gui
 
         void OpenFile(string kind)
         {
+            // Checklists open in PowerSCAP's own read-only checklist view; reports open in the default browser.
+            if (kind == "Checklist") { main.OpenChecklist(FileFor(kind)); return; }
             try { Shell.Open(FileFor(kind)); }
             catch (Exception e)
             {

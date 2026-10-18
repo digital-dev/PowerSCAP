@@ -64,3 +64,59 @@ Describe 'CklbWriter' -Tag Content {
         $missingStig -join ',' | Should Be ''
     }
 }
+
+Describe 'CklbReader' {
+    $mini = Join-Path $PSScriptRoot 'fixtures\content\mini-ds.xml'
+    $work = Join-Path $env:TEMP ('powerscap-cklb-' + [guid]::NewGuid().ToString('N'))
+
+    It 'reads back a checklist PowerSCAP wrote, with the same rules and statuses' {
+        $request = New-Object PowerScap.Engine.Scan.ScanRequest -Property @{ ContentPath = $mini; ProfileId = 'xccdf_test_profile_p1'; OutputPath = $work; Formats = 'Cklb' }
+        $outcome = [PowerScap.Engine.Scan.ScanRunner]::new($null).Run($request, $null, [Threading.CancellationToken]::None)
+        $c = [PowerScap.Engine.Reports.CklbReader]::Read($outcome.Report.Files['Checklist'])
+        $c.HostName | Should Be $env:COMPUTERNAME
+        $c.Stigs.Count | Should Be 1
+        $rules = $c.Stigs[0].Rules
+        $rules.Count | Should Be $outcome.Report.Rules.Count
+        foreach ($r in $outcome.Report.Rules) {
+            $back = $rules | Where-Object RuleId -eq $r.RuleId
+            [PowerScap.Engine.Reports.CklbWriter]::Status($back.Result) | Should Be ([PowerScap.Engine.Reports.CklbWriter]::Status($r.Result))
+            $back.Details | Should Match 'PowerSCAP'
+        }
+    }
+
+    It 'reads checklists from other tools: several STIGs, STIG Viewer statuses, comments and CCIs' {
+        New-Item -ItemType Directory $work -Force | Out-Null
+        $file = Join-Path $work 'other.cklb'
+        @'
+{ "title": "From STIG Viewer", "cklb_version": "1.0",
+  "target_data": { "host_name": "WS01", "ip_address": "10.0.0.5", "role": "Workstation" },
+  "stigs": [
+    { "stig_name": "Example A STIG", "version": "2", "release_info": "Release: 4", "rules": [
+      { "group_id": "V-1", "rule_id_src": "SV-1r1_rule", "rule_version": "EX-01", "rule_title": "One", "severity": "high",
+        "status": "open", "comments": "Waiver requested", "finding_details": "seen", "ccis": ["CCI-000001", "CCI-000002"] },
+      { "group_id": "V-2", "rule_version": "EX-02", "rule_title": "Two", "severity": "medium", "status": "not_a_finding" } ] },
+    { "stig_name": "Example B STIG", "rules": [
+      { "group_id": "V-3", "rule_title": "Three", "severity": "low", "status": "not_applicable" },
+      { "group_id": "V-4", "rule_title": "Four", "severity": "low", "status": "not_reviewed" } ] } ] }
+'@ | Set-Content $file -Encoding UTF8
+        $c = [PowerScap.Engine.Reports.CklbReader]::Read($file)
+        $c.HostName | Should Be 'WS01'
+        @($c.Stigs | ForEach-Object Name) -join '|' | Should Be 'Example A STIG|Example B STIG'
+        $one = $c.Stigs[0].Rules[0]
+        $one.Comments | Should Be 'Waiver requested'
+        $one.Cat | Should Be 'CAT I'
+        $one.Ccis -join ',' | Should Be 'CCI-000001,CCI-000002'
+        @($c.Stigs | ForEach-Object { $_.Rules } | ForEach-Object { [PowerScap.Engine.Reports.CklbWriter]::Status($_.Result) }) -join '|' |
+            Should Be 'open|not_a_finding|not_applicable|not_reviewed'
+    }
+
+    It 'says plainly when a file is not a checklist' {
+        $bad = Join-Path $work 'bad.cklb'
+        Set-Content $bad -Value 'not json' -Encoding ASCII
+        { [PowerScap.Engine.Reports.CklbReader]::Read($bad) } | Should Throw 'Not a .cklb checklist'
+        Set-Content $bad -Value '{ "title": "x" }' -Encoding ASCII
+        { [PowerScap.Engine.Reports.CklbReader]::Read($bad) } | Should Throw 'no "stigs" list'
+    }
+
+    Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
+}

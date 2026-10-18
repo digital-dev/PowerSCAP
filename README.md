@@ -43,6 +43,7 @@ Two rules drive the project:
   - A score tile per benchmark and a findings list you can filter.
   - Rule detail with expected vs. collected values.
   - Scan history with "changed since previous scan".
+  - A read-only checklist view for any `.cklb`, including SCC's and STIG Viewer's.
 - **Fast and stable:** all seven benchmarks for a typical Windows 11 workstation scan in about a minute and a half.
   File and registry trees are read once per scan, however many checks walk them. In the paired run on the reference
   machine, PowerSCAP scanned six benchmarks in under 30 seconds; SCC 5.15 took about 11 minutes for the same six
@@ -115,7 +116,8 @@ Detection is a convenience. Each benchmark's own platform checks decide whether 
 | **System** | The detected machine profile |
 | **Content** | Cached benchmarks with *Detected* and *Update available* badges and a profile per benchmark. Also NCP search, *Find for this system*, downloads and local import |
 | **Scan** | Benchmarks run one after another in the background, with per-benchmark progress and Cancel. A cancelled scan writes nothing |
-| **Results** | Score tiles, findings filtered by status, severity, source and text, *changed since previous scan*, rule detail, and buttons that open the reports and checklist (the checklist opens in STIG Viewer when it is installed, otherwise Explorer shows the file) |
+| **Results** | Score tiles, findings filtered by status, severity, source and text, *changed since previous scan*, rule detail, and buttons that open the HTML reports and the scan's checklist |
+| **Checklists** | A read-only view of any STIG Viewer checklist (`.cklb`), PowerSCAP's or one from SCC or STIG Viewer: each STIG's rules with status, finding details and comments, filtered by status, severity and text. Edit checklists in STIG Viewer |
 | **Settings** | Theme, results and cache folders, update check at launch, preferred content (SCAP 1.4 or 1.3), outputs |
 
 ![Content page, light theme](docs/images/content-light.png)

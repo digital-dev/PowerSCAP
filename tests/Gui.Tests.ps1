@@ -196,10 +196,25 @@ Describe 'GUI window' -Tag Gui {
         $vm.Content.Catalog.Clear()
     }
 
+    It 'opens the scan''s checklist in the app''s checklist view' -Skip:(-not $isSta) {
+        $vm.Page = 'Results'
+        Wait-Ui 1
+        $vm.Results.OpenFileCommand.Execute('Checklist')
+        $vm.Page | Should Be 'Checklist'
+        $n = 0
+        while ($vm.Checklist.IsLoading -and $n++ -lt 20) { Wait-Ui 0.25 }
+        $vm.Checklist.Stigs.Count | Should Be 1
+        $vm.Checklist.Rows.Count | Should Be $vm.Results.Rows.Count
+        $vm.Checklist.StatusFilter = 'Open'
+        @($vm.Checklist.RowsView).Count | Should Be @($vm.Results.Rows | Where-Object Status -eq 'Open').Count
+        $vm.Checklist.StatusFilter = 'All'
+    }
+
     It 'renders every page without binding errors' -Skip:(-not $isSta) {
-        foreach ($p in 'System', 'Content', 'Scan', 'Results', 'Settings') {
+        foreach ($p in 'System', 'Content', 'Scan', 'Results', 'Checklist', 'Settings') {
             $vm.Page = $p
             if ($p -eq 'Results') { $vm.Results.SelectedRow = $vm.Results.Rows[0] }
+            if ($p -eq 'Checklist') { $vm.Checklist.SelectedRow = $vm.Checklist.Rows[0] }
             Wait-Ui 0.5
         }
         ($errors.Errors -join "`n") | Should BeNullOrEmpty

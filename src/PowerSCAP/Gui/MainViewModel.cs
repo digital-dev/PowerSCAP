@@ -30,6 +30,7 @@ namespace PowerScap.Gui
             Scan = new ScanViewModel(this);
             Results = new ResultsViewModel(this);
             Options = new SettingsViewModel(this);
+            Checklist = new ChecklistViewModel(this);
 
             NavigateCommand = new RelayCommand(p => Page = Convert.ToString(p));
             RestartElevatedCommand = new RelayCommand(RestartElevated, () => !IsElevated && !string.IsNullOrEmpty(LauncherScript) && !Scan.IsRunning);
@@ -47,6 +48,7 @@ namespace PowerScap.Gui
         public ScanViewModel Scan { get; private set; }
         public ResultsViewModel Results { get; private set; }
         public SettingsViewModel Options { get; private set; }
+        public ChecklistViewModel Checklist { get; private set; }
 
         public ICommand NavigateCommand { get; private set; }
         public ICommand RestartElevatedCommand { get; private set; }
@@ -60,7 +62,7 @@ namespace PowerScap.Gui
             set
             {
                 if (!Set(ref page, value)) return;
-                Raise("IsSystemPage"); Raise("IsContentPage"); Raise("IsScanPage"); Raise("IsResultsPage"); Raise("IsSettingsPage");
+                Raise("IsSystemPage"); Raise("IsContentPage"); Raise("IsScanPage"); Raise("IsResultsPage"); Raise("IsChecklistPage"); Raise("IsSettingsPage");
                 if (value == "Results") Results.EnsureLoaded();
             }
         }
@@ -70,6 +72,14 @@ namespace PowerScap.Gui
         public bool IsScanPage { get { return page == "Scan"; } }
         public bool IsResultsPage { get { return page == "Results"; } }
         public bool IsSettingsPage { get { return page == "Settings"; } }
+        public bool IsChecklistPage { get { return page == "Checklist"; } }
+
+        /// <summary>Shows a .cklb in the read-only Checklist view.</summary>
+        public void OpenChecklist(string path)
+        {
+            Checklist.Load(path);
+            Page = "Checklist";
+        }
 
         /// <summary>One-line status at the bottom of the window (latest event or error).</summary>
         public string Status

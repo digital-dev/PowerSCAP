@@ -37,6 +37,8 @@ namespace PowerScap.Engine.Reports
         /// <summary>Where the result came from: "SCAP" for the content's own checks.</summary>
         public string Source { get; set; }
         public string Details { get; set; }
+        /// <summary>Reviewer comments (checklists read from .cklb; empty for scans).</summary>
+        public string Comments { get; set; }
         public string CheckHref { get; set; }
         public string CheckName { get; set; }
         /// <summary>The tagged fields of the STIG description (VulnDiscussion, FalsePositives, Documentable, ...).</summary>

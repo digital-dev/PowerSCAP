@@ -85,6 +85,8 @@
                 </RadioButton>
                 <RadioButton DockPanel.Dock="Top" GroupName="nav" Style="{StaticResource Nav}" Content="4   Results"
                              IsChecked="{Binding Page, Converter={StaticResource EqualsTo}, ConverterParameter=Results}"/>
+                <RadioButton DockPanel.Dock="Top" GroupName="nav" Style="{StaticResource Nav}" Content="     Checklists"
+                             IsChecked="{Binding Page, Converter={StaticResource EqualsTo}, ConverterParameter=Checklist}"/>
 
                 <StackPanel DockPanel.Dock="Bottom" Margin="20,8,16,18">
                     <StackPanel Orientation="Horizontal">
@@ -398,7 +400,7 @@
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Content="All-Settings report" Command="{Binding OpenFileCommand}" CommandParameter="All-Settings" Margin="0,0,8,0"/>
                         <Button Content="Non-Compliance report" Command="{Binding OpenFileCommand}" CommandParameter="Non-Compliance" Margin="0,0,8,0"/>
-                        <Button Content="Checklist (.cklb)" Command="{Binding OpenFileCommand}" CommandParameter="Checklist" Margin="0,0,8,0"/>
+                        <Button Content="View checklist" Command="{Binding OpenFileCommand}" CommandParameter="Checklist" Margin="0,0,8,0"/>
                         <Button Content="Show files" Command="{Binding OpenFolderCommand}" Margin="0,0,8,0"/>
                         <Button Content="Refresh" Command="{Binding RefreshCommand}"/>
                     </StackPanel>
@@ -527,6 +529,130 @@
                                         </MultiBinding>
                                     </TextBox.Text>
                                 </TextBox>
+                                <TextBlock Text="FINDING DETAILS" Style="{StaticResource Section}"/>
+                                <Border Background="{DynamicResource Surface2}" CornerRadius="6" Padding="10">
+                                    <TextBox Text="{Binding Details, Mode=OneWay}" Style="{StaticResource Reader}" FontFamily="{StaticResource Mono}" FontSize="12"/>
+                                </Border>
+                                <TextBlock Text="DISCUSSION" Style="{StaticResource Section}"/>
+                                <TextBox Text="{Binding Discussion, Mode=OneWay}" Style="{StaticResource Reader}"/>
+                                <TextBlock Text="CHECK" Style="{StaticResource Section}"/>
+                                <TextBox Text="{Binding CheckText, Mode=OneWay}" Style="{StaticResource Reader}"/>
+                                <TextBlock Text="FIX" Style="{StaticResource Section}"/>
+                                <TextBox Text="{Binding FixText, Mode=OneWay}" Style="{StaticResource Reader}"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <!-- Checklists (read-only .cklb view) -->
+            <Grid Grid.Row="1" Margin="24,20,24,12" Visibility="{Binding DataContext.IsChecklistPage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisible}}" DataContext="{Binding Checklist}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="Show file" Command="{Binding ShowFileCommand}" Margin="0,0,8,0"/>
+                        <Button Style="{StaticResource Primary}" Content="Open .cklb..." Command="{Binding OpenCommand}"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="Checklists" Style="{StaticResource H1}"/>
+                        <TextBlock Text="{Binding Header}" Style="{StaticResource Dim}" TextTrimming="CharacterEllipsis"
+                                   Visibility="{Binding Header, Converter={StaticResource PresentToVisible}}"/>
+                        <TextBlock Text="Read-only view of a STIG Viewer checklist. Edit statuses and comments in STIG Viewer." Style="{StaticResource Dim}"
+                                   Visibility="{Binding Header, Converter={StaticResource EmptyToVisible}}"/>
+                    </StackPanel>
+                </DockPanel>
+
+                <TextBlock Grid.Row="1" Text="{Binding Message}" Style="{StaticResource Dim}" Margin="0,14,0,0"
+                           Visibility="{Binding Message, Converter={StaticResource PresentToVisible}}"/>
+
+                <Grid Grid.Row="2" Margin="0,14,0,0" Visibility="{Binding HasFile, Converter={StaticResource BoolToVisible}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <WrapPanel>
+                        <StackPanel Margin="0,0,12,8">
+                            <TextBlock Text="STIG" Style="{StaticResource Caption}"/>
+                            <ComboBox Width="540" ItemsSource="{Binding Stigs}" SelectedItem="{Binding SelectedStig}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,12,8">
+                            <TextBlock Text="STATUS" Style="{StaticResource Caption}"/>
+                            <ComboBox Width="140" ItemsSource="{Binding Statuses}" SelectedItem="{Binding StatusFilter}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,12,8">
+                            <TextBlock Text="SEVERITY" Style="{StaticResource Caption}"/>
+                            <ComboBox Width="100" ItemsSource="{Binding Cats}" SelectedItem="{Binding CatFilter}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,12,8">
+                            <TextBlock Text="SEARCH" Style="{StaticResource Caption}"/>
+                            <TextBox Width="240" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=150}" ToolTip="Title, V-ID, STIG ID, rule ID, CCI or comment"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,8" VerticalAlignment="Bottom">
+                            <Button Style="{StaticResource Link}" Content="Clear filters" Command="{Binding ClearFiltersCommand}" Margin="0,0,0,7"/>
+                        </StackPanel>
+                    </WrapPanel>
+                    <TextBlock Grid.Row="1" Text="{Binding Counts}" Style="{StaticResource Dim}" FontSize="12" Margin="0,0,0,8"/>
+                </Grid>
+
+                <Grid Grid.Row="3" Visibility="{Binding HasFile, Converter={StaticResource BoolToVisible}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="380"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource Card}" Padding="0">
+                        <DataGrid ItemsSource="{Binding RowsView}" SelectedItem="{Binding SelectedRow}" Margin="6,0,6,6">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="STATUS" Width="118" SortMemberPath="Status">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource StatusPill}">
+                                                <TextBlock Text="{Binding Status}" Style="{StaticResource StatusText}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="SEVERITY" Binding="{Binding Cat}" Width="70"/>
+                                <DataGridTextColumn Header="V-ID" Binding="{Binding GroupId}" Width="82"/>
+                                <DataGridTextColumn Header="STIG ID" Binding="{Binding StigId}" Width="122"/>
+                                <DataGridTemplateColumn Header="TITLE" Width="*" SortMemberPath="Title">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <Border Grid.Column="1" Style="{StaticResource Card}" Width="440" Margin="12,0,0,0" Padding="0"
+                            Visibility="{Binding SelectedRow, Converter={StaticResource PresentToVisible}}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" DataContext="{Binding SelectedRow}">
+                            <StackPanel Margin="18,16,18,18">
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource StatusPill}"><TextBlock Text="{Binding Status}" Style="{StaticResource StatusText}"/></Border>
+                                    <Border Style="{StaticResource Badge}" Background="{DynamicResource NeutralSoft}"><TextBlock Text="{Binding Cat}" FontSize="11"/></Border>
+                                </StackPanel>
+                                <TextBox Text="{Binding Title, Mode=OneWay}" Style="{StaticResource Reader}" FontSize="15" FontWeight="SemiBold" Margin="0,10,0,0"/>
+                                <TextBox Style="{StaticResource Reader}" Foreground="{DynamicResource TextDim}" FontSize="12" Margin="0,6,0,0" FontFamily="{StaticResource Mono}">
+                                    <TextBox.Text>
+                                        <MultiBinding StringFormat="{}{0}   {1}&#x0a;{2}&#x0a;{3}" Mode="OneWay">
+                                            <Binding Path="GroupId"/>
+                                            <Binding Path="StigId"/>
+                                            <Binding Path="RuleId"/>
+                                            <Binding Path="Ccis"/>
+                                        </MultiBinding>
+                                    </TextBox.Text>
+                                </TextBox>
+                                <StackPanel Visibility="{Binding Comments, Converter={StaticResource PresentToVisible}}">
+                                    <TextBlock Text="COMMENTS" Style="{StaticResource Section}"/>
+                                    <TextBox Text="{Binding Comments, Mode=OneWay}" Style="{StaticResource Reader}"/>
+                                </StackPanel>
                                 <TextBlock Text="FINDING DETAILS" Style="{StaticResource Section}"/>
                                 <Border Background="{DynamicResource Surface2}" CornerRadius="6" Padding="10">
                                     <TextBox Text="{Binding Details, Mode=OneWay}" Style="{StaticResource Reader}" FontFamily="{StaticResource Mono}" FontSize="12"/>
