@@ -25,7 +25,11 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
-Import-Module (Join-Path $repo 'src\PowerSCAP') -Force
+Import-Module (Join-Path $repo 'src\PowerSCAP') -Force -WarningVariable importWarnings -WarningAction SilentlyContinue
+# A window that loaded an older engine keeps it (.NET cannot unload assemblies); stop before SCC spends minutes scanning.
+if ($importWarnings | Where-Object { "$_" -match 'was updated after this PowerShell window loaded it' }) {
+    throw 'This PowerShell window is running an older PowerSCAP engine. Open a new elevated PowerShell window and run this again.'
+}
 $compare = Join-Path $PSScriptRoot 'Compare-XccdfResults.ps1'
 $runDir = Join-Path $OutputPath (Get-Date -Format 'yyyyMMdd_HHmmss')
 New-Item -ItemType Directory -Path $runDir -Force | Out-Null
@@ -33,15 +37,48 @@ New-Item -ItemType Directory -Path $runDir -Force | Out-Null
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $admin -and -not $AllowUnelevated) { throw 'Run this elevated: SCC and PowerSCAP both need administrator rights for a real comparison.' }
 
+$cacheRootPath = if ($CacheRoot) { $CacheRoot } else { [PowerScap.Engine.Cache.ContentCache]::DefaultRoot() }
+$cache = New-Object PowerScap.Engine.Cache.ContentCache($cacheRootPath, $null)
+$cached = @($cache.List())
+
 # 1. SCC results: a fresh run, or an existing session.
 if ($RunScc) {
     if (-not (Test-Path -LiteralPath $SccPath)) { throw "cscc.exe not found at $SccPath. Pass -SccPath." }
+    $sccHome = Split-Path $SccPath -Parent
     $sccRoot = Join-Path $runDir 'scc'
     New-Item -ItemType Directory -Path $sccRoot -Force | Out-Null
-    Write-Host "Running SCC: $SccPath"
-    $sw = [Diagnostics.Stopwatch]::StartNew()
-    & $SccPath -u $sccRoot -q
-    Write-Host ('SCC finished in {0:N0}s (exit code {1})' -f $sw.Elapsed.TotalSeconds, $LASTEXITCODE)
+
+    # One cscc run per benchmark PowerSCAP has cached, each from a temporary copy of SCC's options with only that
+    # benchmark enabled (cscc -o, and -dn so nothing is written back): a crash in SCC then loses one benchmark, not the rest.
+    [xml]$options = Get-Content -LiteralPath (Join-Path $sccHome 'options.xml') -Raw
+    # Every enable-able entry (OVAL-only content has no benchmarkID) is switched off except the benchmark being run.
+    $contents = @($options.SelectNodes('//content') | Where-Object { $_.SelectSingleNode('enabled') })
+    foreach ($c in $contents) {
+        $fp = $c.SelectSingleNode('filepath')
+        if ($fp -and $fp.InnerText -and -not [IO.Path]::IsPathRooted($fp.InnerText)) { $fp.InnerText = Join-Path $sccHome $fp.InnerText }
+    }
+    $wanted = @($contents | Where-Object { $_.SelectSingleNode('benchmarkID') } | Where-Object {
+            $id = $_.SelectSingleNode('benchmarkID').InnerText
+            $cached | Where-Object { $_.BenchmarkId -match ('_benchmark_' + [regex]::Escape($id) + '$') }
+        } | ForEach-Object { $_.SelectSingleNode('benchmarkID').InnerText } | Select-Object -Unique)
+    if ($wanted.Count -eq 0) { throw 'None of the benchmarks installed in SCC are in the PowerSCAP cache.' }
+
+    $crashed = @()
+    foreach ($id in $wanted) {
+        foreach ($c in $contents) {
+            $b = $c.SelectSingleNode('benchmarkID')
+            $c.SelectSingleNode('enabled').InnerText = $(if ($b -and $b.InnerText -eq $id) { '1' } else { '0' })
+        }
+        $tmpOptions = Join-Path $runDir "scc-options-$id.xml"
+        $options.Save($tmpOptions)
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        & $SccPath -o $tmpOptions -u $sccRoot -q -dn
+        $code = $LASTEXITCODE
+        Write-Host ('SCC {0,-45} {1,5:N0}s  exit code {2}' -f $id, $sw.Elapsed.TotalSeconds, $code)
+        if ($code -lt 0) { $crashed += $id }
+        Remove-Item -LiteralPath $tmpOptions -ErrorAction SilentlyContinue
+    }
+    if ($crashed) { Write-Warning ('SCC crashed while scanning: ' + ($crashed -join ', ') + '. Those benchmarks may have no SCC results to compare.') }
 }
 else {
     if (-not $SccSession) { throw 'Pass -RunScc, or -SccSession with an existing SCC session folder.' }
@@ -51,9 +88,6 @@ $references = @(Get-ChildItem -LiteralPath $sccRoot -Recurse -Filter '*XCCDF-Res
 if ($references.Count -eq 0) { throw "No SCC XCCDF results found under $sccRoot." }
 
 # 2. PowerSCAP on the same benchmarks, from the cache, with SCC's profile. Collectors are shared across benchmarks.
-$cacheRootPath = if ($CacheRoot) { $CacheRoot } else { [PowerScap.Engine.Cache.ContentCache]::DefaultRoot() }
-$cache = New-Object PowerScap.Engine.Cache.ContentCache($cacheRootPath, $null)
-$cached = @($cache.List())
 $collectors = [PowerScap.Engine.Oval.CollectorRegistry]::CreateDefault()
 $psDir = Join-Path $runDir 'powerscap'
 $all = foreach ($ref in $references) {
