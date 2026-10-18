@@ -156,7 +156,8 @@ powershell -NoProfile -File build\Invoke-Tests.ps1 -ExcludeTag Admin,Slow,Online
 
 Useful tools:
 
-- `tools\Invoke-ParityRun.ps1` scans against an SCC session on disk and diffs the results rule by rule.
+- `tools\Invoke-ParityRun.ps1 -RunScc` runs SCC's command-line scanner, then PowerSCAP on the same benchmarks back to
+  back, and diffs every rule. With `-SccSession` it compares against an existing SCC session instead.
 - `tools\Compare-XccdfResults.ps1` diffs any two XCCDF result files.
 - `tools\Get-OvalInventory.ps1` and `tools\Get-CommandInventory.ps1` list OVAL objects and embedded commands
   that the engine does not support yet.
