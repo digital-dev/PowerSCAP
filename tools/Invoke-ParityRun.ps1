@@ -48,50 +48,43 @@ if ($RunScc) {
     $sccRoot = Join-Path $runDir 'scc'
     New-Item -ItemType Directory -Path $sccRoot -Force | Out-Null
 
-    # One cscc run per benchmark PowerSCAP has cached, each from a temporary copy of SCC's options with only that
-    # benchmark enabled (cscc -o, and -dn so nothing is written back): a crash in SCC then loses one benchmark, not the rest.
-    # Whitespace preserved: re-indenting turns empty elements into whitespace, which SCC's options schema rejects.
-    $options = New-Object Xml.XmlDocument
-    $options.PreserveWhitespace = $true
-    $options.Load((Join-Path $sccHome 'options.xml'))
-    # Every enable-able entry (OVAL-only content has no benchmarkID) is switched off except the benchmark being run.
-    # Nothing else changes: SCC resolves the relative content paths against its install folder and matches them to its
-    # content database, so a rewritten path makes it skip the content as "modified since last options file was saved".
-    $contents = @($options.SelectNodes('//content') | Where-Object { $_.SelectSingleNode('enabled') })
-    $wanted = @($contents | Where-Object { $_.SelectSingleNode('benchmarkID') } | Where-Object {
-            $id = $_.SelectSingleNode('benchmarkID').InnerText
+    # One cscc scan per benchmark PowerSCAP has cached, so a crash in SCC loses one benchmark, not the rest. Benchmarks
+    # are switched with SCC's own commands (-da, then -eb) on its real options file, which is restored afterwards:
+    # SCC refuses a separately written options file (-o) as "content modified since last options file was saved".
+    [xml]$options = Get-Content -LiteralPath (Join-Path $sccHome 'options.xml') -Raw
+    $wanted = @($options.SelectNodes('//content/benchmarkID') | ForEach-Object { $_.InnerText } | Select-Object -Unique | Where-Object {
+            $id = $_
             $cached | Where-Object { $_.BenchmarkId -match ('_benchmark_' + [regex]::Escape($id) + '$') }
-        } | ForEach-Object { $_.SelectSingleNode('benchmarkID').InnerText } | Select-Object -Unique)
+        })
     if ($wanted.Count -eq 0) { throw 'None of the benchmarks installed in SCC are in the PowerSCAP cache.' }
 
-    $schemas = New-Object Xml.Schema.XmlSchemaSet
-    [void]$schemas.Add($null, (Join-Path $sccHome 'Resources\Schemas\options.xsd'))
-    $crashed = @()
-    foreach ($id in $wanted) {
-        foreach ($c in $contents) {
-            $b = $c.SelectSingleNode('benchmarkID')
-            $c.SelectSingleNode('enabled').InnerText = $(if ($b -and $b.InnerText -eq $id) { '1' } else { '0' })
+    $optionsFile = Join-Path $sccHome 'options.xml'
+    $backup = Join-Path $runDir 'scc-options-backup.xml'
+    Copy-Item -LiteralPath $optionsFile -Destination $backup
+    $crashed = @(); $empty = @()
+    try {
+        foreach ($id in $wanted) {
+            & $SccPath -da | Out-Null
+            & $SccPath -eb $id | Out-Null
+            $before = @(Get-ChildItem -LiteralPath $sccRoot -Recurse -Filter '*XCCDF-Results*.xml').Count
+            $sw = [Diagnostics.Stopwatch]::StartNew()
+            & $SccPath -u $sccRoot -q
+            $code = $LASTEXITCODE
+            $made = @(Get-ChildItem -LiteralPath $sccRoot -Recurse -Filter '*XCCDF-Results*.xml').Count - $before
+            Write-Host ('SCC {0,-45} {1,5:N0}s  exit code {2}  results {3}' -f $id, $sw.Elapsed.TotalSeconds, $code, $made)
+            if ($code -lt 0) { $crashed += $id } elseif ($made -eq 0) { $empty += $id }
         }
-        $tmpOptions = Join-Path $runDir "scc-options-$id.xml"
-        $writer = New-Object IO.StreamWriter($tmpOptions, $false, (New-Object Text.UTF8Encoding($false)))
-        try { $options.Save($writer) } finally { $writer.Dispose() }
-        # SCC replaces an options file that fails its schema with defaults (no content enabled): check first.
-        $schemaErrors = New-Object 'System.Collections.Generic.List[string]'
-        $settings = New-Object Xml.XmlReaderSettings
-        $settings.ValidationType = 'Schema'
-        $settings.Schemas = $schemas
-        $settings.add_ValidationEventHandler({ param($s, $e) $schemaErrors.Add("line $($e.Exception.LineNumber): $($e.Message)") })
-        $reader = [Xml.XmlReader]::Create($tmpOptions, $settings)
-        try { while ($reader.Read()) { } } finally { $reader.Dispose() }
-        if ($schemaErrors.Count -gt 0) { throw "The options file written for SCC fails SCC's schema: $($schemaErrors[0])" }
-        $sw = [Diagnostics.Stopwatch]::StartNew()
-        & $SccPath -o $tmpOptions -u $sccRoot -q -dn
-        $code = $LASTEXITCODE
-        Write-Host ('SCC {0,-45} {1,5:N0}s  exit code {2}' -f $id, $sw.Elapsed.TotalSeconds, $code)
-        if ($code -lt 0) { $crashed += $id }
-        Remove-Item -LiteralPath $tmpOptions -ErrorAction SilentlyContinue
+    }
+    finally {
+        # SCC's own options file goes back exactly as it was, whatever happened above.
+        Copy-Item -LiteralPath $backup -Destination $optionsFile -Force
+        Write-Host "Restored SCC's options file."
     }
     if ($crashed) { Write-Warning ('SCC crashed while scanning: ' + ($crashed -join ', ') + '. Those benchmarks may have no SCC results to compare.') }
+    if ($empty) {
+        Write-Warning ('SCC wrote no results for: ' + ($empty -join ', ') + '. Its reason is in the Logs folder of each session under ' + $sccRoot)
+        Get-ChildItem -LiteralPath $sccRoot -Recurse -Filter '*Error_Log*.txt' | Select-String -Pattern 'ERROR' | Select-Object -First 3 | ForEach-Object { Write-Host ('  ' + $_.Line.Trim()) }
+    }
 }
 else {
     if (-not $SccSession) { throw 'Pass -RunScc, or -SccSession with an existing SCC session folder.' }
