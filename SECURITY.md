@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-PowerSCAP is pre-1.0. Only the latest commit on `main` is supported. Please update before you report an issue.
+PowerSCAP is pre-1.0. Only the latest commit on `master` is supported. Please update before you report an issue.
 
 ## Reporting a vulnerability
 

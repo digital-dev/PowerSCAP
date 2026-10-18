@@ -65,7 +65,7 @@ body:
     attributes:
       label: Checks
       options:
-        - label: I'm on the latest commit of main
+        - label: I'm on the latest commit of master
           required: true
         - label: I opened a new PowerShell window after updating (an old window keeps running the old engine)
           required: true

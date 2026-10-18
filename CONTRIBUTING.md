@@ -7,7 +7,7 @@ Pull requests are welcome. Useful contributions include:
 - report and checklist fixes;
 - parity reports from your own SCC comparisons.
 
-1. Fork, and branch off `main`.
+1. Fork, and branch off `master`.
 2. Read [`CODEBASE_MAP.md`](CODEBASE_MAP.md) first. It covers how a scan flows through the code and the rules a
    change has to keep: results match a validated scanner, findings follow the STIG, no script execution during
    scans, collectors never throw, read-only. It also explains why each rule exists.
@@ -24,7 +24,7 @@ Pull requests are welcome. Useful contributions include:
    `tools\Invoke-ParityRun.ps1` or `tools\Compare-XccdfResults.ps1`, and say in the PR which benchmarks, content
    versions and machine you compared. Add a row to [`docs/parity.md`](docs/parity.md) for any rule whose result
    changes.
-7. Open the PR against `main` and explain what changed and why. Small, focused PRs are reviewed faster.
+7. Open the PR against `master` and explain what changed and why. Small, focused PRs are reviewed faster.
 
 **Found a result that differs from SCC?** Open a
 [Result differs from SCC](../../issues/new?template=parity_mismatch.yml) issue. Include the rule's finding

@@ -18,7 +18,7 @@
     PrivateData       = @{
         PSData = @{
             Tags       = @('SCAP', 'STIG', 'XCCDF', 'OVAL', 'Compliance', 'Security', 'DISA', 'Windows')
-            LicenseUri = 'https://github.com/digital-dev/PowerSCAP/blob/main/LICENSE'
+            LicenseUri = 'https://github.com/digital-dev/PowerSCAP/blob/master/LICENSE'
             ProjectUri = 'https://github.com/digital-dev/PowerSCAP'
         }
     }
