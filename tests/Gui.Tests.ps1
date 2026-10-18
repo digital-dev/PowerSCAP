@@ -183,6 +183,13 @@ Describe 'GUI window' -Tag Gui {
     Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+Describe 'Opening output files' {
+    It 'knows which file types have a program to open them (.cklb without STIG Viewer is shown in Explorer)' {
+        [PowerScap.Gui.Shell]::HasAssociation('.html') | Should Be $true
+        [PowerScap.Gui.Shell]::HasAssociation('.powerscap-no-such-type') | Should Be $false
+    }
+}
+
 Describe 'PowerSCAP shortcut' {
     It 'opens the app hidden and as administrator' {
         $lnk = Join-Path $env:TEMP ('PowerSCAP-' + [guid]::NewGuid().ToString('N') + '.lnk')

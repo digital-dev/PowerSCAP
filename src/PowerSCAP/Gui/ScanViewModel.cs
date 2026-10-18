@@ -215,11 +215,14 @@ namespace PowerScap.Gui
         }
     }
 
-    static class Shell
+    public static class Shell
     {
         public static void Open(string path)
         {
             if (string.IsNullOrEmpty(path)) return;
+            // With no program registered for the type (.cklb without STIG Viewer), Windows would show its
+            // "Select an app" dialog; show the file in Explorer instead.
+            if (!HasAssociation(Path.GetExtension(path))) { Select(path); return; }
             try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); }
             catch (Exception e)
             {
@@ -227,6 +230,21 @@ namespace PowerScap.Gui
                 if (e is System.ComponentModel.Win32Exception || e is InvalidOperationException) Select(path);
                 else throw;
             }
+        }
+
+        [System.Runtime.InteropServices.DllImport("shlwapi.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        static extern int AssocQueryString(int flags, int str, string assoc, string extra, System.Text.StringBuilder output, ref int size);
+
+        /// <summary>True when Windows has a program to open files of this extension.</summary>
+        public static bool HasAssociation(string extension)
+        {
+            if (string.IsNullOrEmpty(extension)) return false;
+            const int ASSOCF_INIT_IGNOREUNKNOWN = 0x400, ASSOCSTR_EXECUTABLE = 2;
+            int size = 1024;
+            var sb = new System.Text.StringBuilder(size);
+            try { return AssocQueryString(ASSOCF_INIT_IGNOREUNKNOWN, ASSOCSTR_EXECUTABLE, extension, "open", sb, ref size) == 0 && sb.Length > 0; }
+            catch (DllNotFoundException) { return true; }
+            catch (EntryPointNotFoundException) { return true; }
         }
 
         public static void Select(string path)

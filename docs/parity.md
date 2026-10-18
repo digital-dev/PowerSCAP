@@ -16,7 +16,9 @@ to each other rule for rule).
 | **Total** | **502** | **500** | **2** |
 
 First elevated run: 495 of 502 matched. After the fixes below, the elevated run of 2026-10-17 15:15 matched 500;
-the remaining two are SV-253338 (machine change) and SV-225232 (fixed after that run; see below).
+the remaining two are SV-253338 (machine change) and SV-225232 (fixed after that run; see below). The elevated
+runs of 2026-10-17 22:03 confirm the SV-225232 fix: pass, as SCC reports it, so every remaining difference is a
+machine change.
 
 ## Differences and verdicts
 
@@ -30,4 +32,6 @@ the remaining two are SV-253338 (machine change) and SV-225232 (fixed after that
 | SV-253338 (Security log size) | fail | pass | **Machine change.** The 5 GB Security log size was applied after SCC's scan. Not a difference in evaluation. |
 | SV-253476 (admin password age) | fail | notapplicable | **PowerSCAP changed to follow the STIG, now fail.** The STIG makes any enabled local administrator with a password older than 60 days a finding (the local administrator account here: 523 days). The content's filter `group = Administrators` uses the default `entity_check="all"`, which read strictly would drop a user who is also in other groups (`HOST\docker-users`) and hide the finding. Filters now match a multi-valued entity when any value does, unless the content sets `entity_check`, as SCC does. Test states keep the OVAL default. Owner's rule: results follow what NIST/STIG deem a finding. |
 
-The SV-225232 filter change still needs confirming by an elevated run. Unelevated rescans of all seven benchmarks changed only the rules named here.
+The SV-225232 filter change is confirmed by the elevated .NET run of 2026-10-17 22:03: pass, with no `.exe.config` file left
+after the OS paths are excluded, the same evaluation SCC shows (definition true, no collected items). Unelevated rescans
+of all seven benchmarks changed only the rules named here.

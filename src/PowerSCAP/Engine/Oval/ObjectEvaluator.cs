@@ -33,7 +33,9 @@ namespace PowerScap.Engine.Oval
 
             foreach (var c in spec.Entities.Values)
                 if (c.VariableFlag.HasValue)
-                    return CollectedObject.WithFlag(id, c.VariableFlag.Value, "Variable " + c.VarRef + " could not be resolved.");
+                    return CollectedObject.WithFlag(id, c.VariableFlag.Value, c.VariableFlag.Value == CollectedFlag.DoesNotExist
+                        ? "Variable " + c.VarRef + " has no values, so there is nothing to collect."
+                        : "Variable " + c.VarRef + " could not be resolved.");
 
             ICollector collector = ctx.Collectors.Find(spec.ObjectType);
             if (collector == null)
