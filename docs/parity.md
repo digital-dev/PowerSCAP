@@ -1,8 +1,33 @@
 # Parity with SCC 5.15
 
-Reference: SCC 5.15 session `2026-10-15_210812` on the reference machine (Windows 11 Pro 25H2), same NIWC enhanced
-SCAP 1.4 content. PowerSCAP: the elevated run of all seven benchmarks on 2026-10-17 22:03, compared rule by rule
-with `tools\Compare-XccdfResults.ps1`.
+## Paired run, 2026-10-18 (same machine state)
+
+SCC 5.15 (`cscc.exe`) and PowerSCAP scanned the reference machine (Windows 11 Pro 25H2) back to back, both elevated,
+with the same NIWC enhanced SCAP 1.4 content versions and profile (MAC-1 Classified), using
+`tools\Invoke-ParityRun.ps1 -RunScc`. Every rule result and all four XCCDF scores (default, flat, flat-unweighted,
+absolute) were compared.
+
+| Benchmark | Version | Rules | Match | Scores |
+|---|---|---:|---:|---|
+| Google Chrome | 002.011.016 | 46 | 46 | identical |
+| Mozilla Firefox (Windows) | 006.008.013 | 33 | 33 | identical |
+| MS Defender Antivirus | 002.009.015 | 67 | 67 | identical |
+| MS .NET Framework 4 | 002.008.015 | 17 | 17 | identical |
+| MS Edge STIG | 002.005.016 | 61 | 61 | identical |
+| Windows Defender Firewall | 002.003.014 | 21 | 21 | identical |
+| **Total** | | **245** | **245** | |
+
+The matched results cover every result kind present: 124 pass, 106 fail, 12 not checked, 3 error.
+
+**Microsoft Windows 11 STIG could not be paired:** SCC crashed on all three attempts (access violation `0xC0000005`,
+and `0xC0000028`), writing no results. SCC was unstable throughout on this machine: it also crashed on first attempts at
+Firefox and .NET, and its Perl XML engine reported uninitialized values. PowerSCAP scanned all seven benchmarks without
+a failure. The Windows 11 comparison below uses SCC's last complete Windows 11 run.
+
+## Unpaired comparison (SCC session of 2026-10-15)
+
+Reference: SCC 5.15 session `2026-10-15_210812`, same content. PowerSCAP: the elevated run of all seven benchmarks
+on 2026-10-17 22:03.
 
 | Benchmark | Rules | Match | Differ |
 |---|---:|---:|---:|
@@ -15,9 +40,8 @@ with `tools\Compare-XccdfResults.ps1`.
 | MS .NET Framework 4 | 17 | 17 | 0 |
 | **Total** | **502** | **500** | **2** |
 
-**Both remaining differences are machine changes between the two scans, not differences in evaluation.** With the
-collected values each tool saw, both tools give the same result (SV-253264, SV-253338 below). A paired run (SCC and
-PowerSCAP back to back, on the same machine state) has not been made yet; SCC is not installed on the reference machine.
+**Both differences are machine changes between the two scans, not differences in evaluation.** With the collected
+values each tool saw, both tools give the same result (SV-253264, SV-253338 below).
 
 History: the first elevated run matched 495 of 502. The fixes below brought it to 500. The SV-225232 filter change,
 made after the 15:15 run, is confirmed by the 22:03 run: pass, the same evaluation SCC shows (definition true,

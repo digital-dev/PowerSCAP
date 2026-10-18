@@ -15,10 +15,10 @@ There is nothing to install, no service, no telemetry, and it never changes the 
 Two rules drive the project:
 
 - **Results must match a validated scanner 1:1.** SCAP is black and white. Every difference from SCC is
-  investigated and written up in [docs/parity.md](docs/parity.md). On the reference machine, PowerSCAP evaluates
-  all 502 rules of seven benchmarks the way SCC 5.15 does. The comparison used an SCC scan from two days earlier,
-  and two settings changed on the machine in between (a log size and the antivirus's running state). Those two
-  rules report the machine as each tool found it; from the same collected values, both tools give the same result.
+  investigated and written up in [docs/parity.md](docs/parity.md). In a paired run (SCC 5.15 and PowerSCAP back to
+  back on the same machine, same content), all 245 rules of six benchmarks and all four XCCDF scores match. Windows 11
+  could not be paired because SCC crashed on every attempt; against SCC's last complete Windows 11 run, every
+  difference is a setting that changed on the machine between the scans.
 - **Remove human error wherever possible.** PowerSCAP finds which benchmarks apply, downloads and verifies them,
   and puts the expected and collected values next to every finding. You don't have to interpret raw OVAL.
 
