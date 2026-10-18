@@ -99,6 +99,20 @@ Describe 'ContentCache' {
         @(Get-ChildItem (Join-Path $cache.Root '.partial') -ErrorAction SilentlyContinue).Count | Should Be 0
     }
 
+    It 'leaves the cache unchanged, and says why, when it may not change the manifest' {
+        # An elevated session's manifest cannot be replaced unelevated; a read-only manifest fails the same way.
+        $cache = New-Cache
+        $cache.Import($zipA) | Out-Null
+        $manifest = Join-Path $cache.Root 'manifest.json'
+        Set-ItemProperty $manifest -Name IsReadOnly -Value $true
+        try {
+            { $cache.Import($zipB) } | Should Throw 'can only be changed by an administrator'
+            $cache.List().Count | Should Be 1
+            @(Get-ChildItem $cache.Root -Recurse -File | Where-Object { $_.Name -ne 'manifest.json' }).Count | Should Be 1
+        }
+        finally { Set-ItemProperty $manifest -Name IsReadOnly -Value $false }
+    }
+
     It 'imports a local file' {
         $cache = New-Cache
         $e = $cache.Import($zipA)

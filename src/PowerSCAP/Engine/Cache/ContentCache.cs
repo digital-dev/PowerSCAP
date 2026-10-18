@@ -158,14 +158,28 @@ namespace PowerScap.Engine.Cache
                 if (existing != null) return existing;
                 entry.RelativePath = Path.Combine(folder, entry.Id + "_" + entry.FileName);
                 string final = PathOf(entry);
-                Directory.CreateDirectory(Path.GetDirectoryName(final));
-                if (File.Exists(final)) File.Delete(final);
-                File.Move(temp, final);
-                entry.AddedUtc = DateTime.UtcNow;
-                entries.RemoveAll(e => e.Sha256 == entry.Sha256);
-                entries.Add(entry);
-                Write(entries);
-                return entry;
+                bool createdFolder = !Directory.Exists(Path.GetDirectoryName(final));
+                try
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(final));
+                    if (File.Exists(final)) File.Delete(final);
+                    File.Move(temp, final);
+                    entry.AddedUtc = DateTime.UtcNow;
+                    entries.RemoveAll(e => e.Sha256 == entry.Sha256);
+                    entries.Add(entry);
+                    Write(entries);
+                    return entry;
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    // The cache is shared machine-wide; files an elevated session created can only be changed elevated.
+                    // Leave the cache as it was rather than holding a file the manifest does not list.
+                    TryDelete(final);
+                    TryDelete(ManifestPath + ".tmp");
+                    if (createdFolder) try { Directory.Delete(Path.GetDirectoryName(final)); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+                    throw new CacheException("The content cache at " + Root + " can only be changed by an administrator. " +
+                        "Run PowerShell (or PowerSCAP) as administrator and try again.", ex);
+                }
             }
         }
 
