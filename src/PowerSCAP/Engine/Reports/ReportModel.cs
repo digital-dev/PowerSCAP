@@ -51,6 +51,71 @@ namespace PowerScap.Engine.Reports
         {
             get { return Result == XccdfResult.Fail || Result == XccdfResult.Error || Result == XccdfResult.Unknown; }
         }
+
+        /// <summary>The question to put to a reviewer for a manual rule: the content's OCIL question, else the check text.</summary>
+        public string Question { get; set; }
+
+        /// <summary>Layer 2 or 3 outcome (PowerSCAP script, or a person's answer). Never changes <see cref="Result"/>.</summary>
+        public RuleReview Review { get; set; }
+
+        /// <summary>The content left this rule to a person (the SCAP result is notchecked).</summary>
+        public bool IsManual { get { return Result == XccdfResult.NotChecked; } }
+
+        /// <summary>The status a checklist shows: the SCAP result when SCAP decided it, else the review's.</summary>
+        public XccdfResult EffectiveResult
+        {
+            get { return IsManual && Review != null && Review.IsDecided ? Review.Status : Result; }
+        }
+
+        /// <summary>SCAP, Script, Answered, or Manual (left to a person and not yet reviewed).</summary>
+        public string EffectiveSource
+        {
+            get
+            {
+                if (!IsManual) return string.IsNullOrEmpty(Source) ? "SCAP" : Source;
+                if (Review == null || !Review.IsDecided) return "Manual";
+                return Review.Source == RuleReview.Answer ? "Answered" : "Script";
+            }
+        }
+    }
+
+    /// <summary>
+    /// The outcome of the layers beyond SCAP for a manual rule: a PowerSCAP native check (Script) or a person's answer.
+    /// Kept apart from the SCAP result, which it never changes.
+    /// </summary>
+    public class RuleReview
+    {
+        public const string Script = "Script";
+        public const string Answer = "Answer";
+
+        /// <summary>Pass (not a finding), Fail (open), NotApplicable, or NotChecked when only evidence was gathered.</summary>
+        public XccdfResult Status { get; set; }
+        /// <summary>Script or Answer.</summary>
+        public string Source { get; set; }
+        /// <summary>Who answered (DOMAIN\user), or "PowerSCAP" for a script.</summary>
+        public string Author { get; set; }
+        public DateTime When { get; set; }
+        public string Comment { get; set; }
+        /// <summary>What a script found (accounts, adapters, policy values), shown to the reviewer.</summary>
+        public string Evidence { get; set; }
+        /// <summary>The rule changed (revision or check text) since this answer was given.</summary>
+        public bool NeedsReReview { get; set; }
+
+        public bool IsDecided
+        {
+            get { return !NeedsReReview && (Status == XccdfResult.Pass || Status == XccdfResult.Fail || Status == XccdfResult.NotApplicable); }
+        }
+
+        /// <summary>"PowerSCAP automated" or "Answered by DOMAIN\user 2026-10-18".</summary>
+        public string Label
+        {
+            get
+            {
+                return Source == Answer
+                    ? "Answered by " + Author + " " + When.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)
+                    : "PowerSCAP automated";
+            }
+        }
     }
 
     /// <summary>A scanned benchmark, ready for any output format.</summary>
@@ -98,6 +163,22 @@ namespace PowerScap.Engine.Reports
         /// <summary>Open findings (fail) in a category, as STIG Viewer counts them; errors are not reviewed, not open.</summary>
         public int Open(string cat) { return Rules.Count(x => x.Cat == cat && x.Result == XccdfResult.Fail); }
 
+        /// <summary>
+        /// STIG completeness, 0-100: the share of rules with a status other than Not Reviewed once script checks and
+        /// answers are counted. Separate from the SCAP scores, which only SCAP results feed.
+        /// </summary>
+        public double Completeness
+        {
+            get
+            {
+                if (Rules.Count == 0) return 0;
+                return 100.0 * Rules.Count(x => x.EffectiveResult != XccdfResult.NotChecked && x.EffectiveResult != XccdfResult.Informational) / Rules.Count;
+            }
+        }
+
+        /// <summary>Open findings per category counting script checks and answers (the checklist's view).</summary>
+        public int OpenEffective(string cat) { return Rules.Count(x => x.Cat == cat && x.EffectiveResult == XccdfResult.Fail); }
+
         public static BenchmarkReport Build(ScapContent content, ResolvedProfile profile, List<RuleResult> results, List<Score> scores,
             TargetInfo target, DateTime start, DateTime end)
         {
@@ -129,8 +210,13 @@ namespace PowerScap.Engine.Reports
             report.Scores.AddRange(scores);
 
             var details = new FindingDetails(content);
+            var questions = new OcilQuestions(content);
             foreach (var r in results.Where(x => x.Result != XccdfResult.NotSelected))
-                report.Rules.Add(Describe(r, details));
+            {
+                var rr = Describe(r, details);
+                if (rr.IsManual) rr.Question = questions.For(r.Rule.RuleElement) ?? rr.CheckText;
+                report.Rules.Add(rr);
+            }
             return report;
         }
 

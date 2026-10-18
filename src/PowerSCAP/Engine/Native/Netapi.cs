@@ -18,6 +18,8 @@ namespace PowerScap.Engine.Native
         public string Name { get; set; }
         public bool Enabled { get; set; }
         public SecurityIdentifier Sid { get; set; }
+        /// <summary>Last interactive logon recorded on this machine; null when the account never logged on.</summary>
+        public DateTime? LastLogon { get; set; }
     }
 
     public class PasswordPolicy
@@ -36,6 +38,14 @@ namespace PowerScap.Engine.Native
         struct USER_MODALS_INFO_3 { public uint lockout_duration, lockout_observation_window, lockout_threshold; }
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         struct USER_INFO_1 { public string name, password; public uint password_age, priv; public string home_dir, comment; public uint flags; public string script_path; }
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        struct USER_INFO_2
+        {
+            public string name, password; public uint password_age, priv; public string home_dir, comment; public uint flags; public string script_path;
+            public uint auth_flags; public string full_name, usr_comment, parms, workstations;
+            public uint last_logon, last_logoff, acct_expires, max_storage, units_per_week; public IntPtr logon_hours;
+            public uint bad_pw_count, num_logons; public string logon_server; public uint country_code, code_page;
+        }
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         struct LOCALGROUP_INFO_0 { public string name; }
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -162,12 +172,18 @@ namespace PowerScap.Engine.Native
             var users = new List<LocalUser>();
             IntPtr buf;
             int read, total, resume = 0;
-            Check(NetUserEnum(null, 1, FILTER_NORMAL_ACCOUNT, out buf, MAX_PREFERRED_LENGTH, out read, out total, ref resume));
+            // Level 2 adds the last logon (seconds since 1970, 0 when the account never logged on).
+            Check(NetUserEnum(null, 2, FILTER_NORMAL_ACCOUNT, out buf, MAX_PREFERRED_LENGTH, out read, out total, ref resume));
             try
             {
-                foreach (var u in Read<USER_INFO_1>(buf, read))
+                foreach (var u in Read<USER_INFO_2>(buf, read))
                 {
-                    var lu = new LocalUser { Name = u.name, Enabled = (u.flags & UF_ACCOUNTDISABLE) == 0 };
+                    var lu = new LocalUser
+                    {
+                        Name = u.name,
+                        Enabled = (u.flags & UF_ACCOUNTDISABLE) == 0,
+                        LastLogon = u.last_logon == 0 ? (DateTime?)null : new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(u.last_logon).ToLocalTime()
+                    };
                     try { lu.Sid = (SecurityIdentifier)new NTAccount(Environment.MachineName, u.name).Translate(typeof(SecurityIdentifier)); }
                     catch (Exception) { }
                     users.Add(lu);
