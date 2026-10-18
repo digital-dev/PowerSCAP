@@ -8,7 +8,8 @@
     FunctionsToExport = @(
         'Import-PowerScapEngine', 'Invoke-PowerScapScan',
         'Get-PowerScapSystemProfile', 'Find-PowerScapBenchmark', 'Save-PowerScapBenchmark',
-        'Import-PowerScapBenchmark', 'Get-PowerScapBenchmark', 'Test-PowerScapBenchmarkUpdate'
+        'Import-PowerScapBenchmark', 'Get-PowerScapBenchmark', 'Test-PowerScapBenchmarkUpdate',
+        'Start-PowerScapGui', 'New-PowerScapShortcut'
     )
     CmdletsToExport   = @()
     VariablesToExport = @()

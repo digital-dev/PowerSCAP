@@ -41,6 +41,29 @@ Scanning several benchmarks in one call (pipeline) also writes `<host>_<time>_Su
 Get-PowerScapBenchmark -Latest | Invoke-PowerScapScan -OutputPath D:\PowerSCAP-Results
 ```
 
+Each scan is also kept in the scan history (`%ProgramData%\PowerSCAP\history`, or `$env:POWERSCAP_HISTORYDIR`;
+`-NoHistory` skips it) so the app can show and compare past results.
+
+## Desktop app
+
+```powershell
+Import-Module .\src\PowerSCAP
+New-PowerScapShortcut      # PowerSCAP.lnk on the desktop: opens as administrator, no console window
+Start-PowerScapGui         # or open it from this PowerShell window
+```
+
+- **System:** what was detected on this machine.
+- **Content:** cached benchmarks with Detected / Update available badges and a profile per benchmark;
+  NIST NCP search, "Find for this system", downloads and local import.
+- **Scan:** benchmarks run one after another in the background, with progress and Cancel. A cancelled scan writes nothing.
+- **Results:** a score tile per benchmark, findings filtered by status, severity, source and text, "changed since
+  previous scan", rule detail (finding details with expected vs. collected values, discussion, check, fix) and
+  buttons for the reports and checklist.
+- **Settings:** Dark / Light / Follow Windows, results and cache folders, update check at launch, preferred
+  content (SCAP 1.4 or 1.3), outputs. Saved to `%LOCALAPPDATA%\PowerSCAP\settings.json`.
+
+`tools/Save-GuiScreenshots.ps1` renders each page to PNG (off screen) for layout review.
+
 ## Running the tests
 
 Tests use the Pester 3.4 that ships with Windows and always run under Windows PowerShell 5.1:

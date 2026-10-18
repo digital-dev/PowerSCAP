@@ -30,6 +30,8 @@ namespace PowerScap.Engine.Cache
         public string BenchmarkVersion { get; set; }
         public string BenchmarkTitle { get; set; }
         public bool Imported { get; set; }
+        /// <summary>NCP target products of the checklist (downloads only); used to mark content for this machine.</summary>
+        public List<string> Targets { get; set; }
         /// <summary>XML signature check made when the file entered the cache.</summary>
         public SignatureReport Signature { get; set; }
         /// <summary>Path relative to the cache root.</summary>
@@ -115,7 +117,8 @@ namespace PowerScap.Engine.Cache
                     SourceUrl = resource.Location,
                     ResourceType = resource.TypeName,
                     FileName = resource.FileName,
-                    ETag = etag
+                    ETag = etag,
+                    Targets = checklist.Targets.ToList()
                 };
                 return Add(temp, entry, checklist.Id.ToString(CultureInfo.InvariantCulture));
             }

@@ -132,8 +132,15 @@ namespace PowerScap.Engine.Ncp
         /// <summary>The SCAP resource to use for a Windows host, or null when the checklist has none.</summary>
         public static NcpResource PickScapResource(NcpChecklist c)
         {
+            return PickScapResource(c, null);
+        }
+
+        /// <summary>As PickScapResource, trying the preferred resource type ("SCAP 1.3 Content") first.</summary>
+        public static NcpResource PickScapResource(NcpChecklist c, string preferredType)
+        {
             if (c == null) return null;
-            foreach (var type in Preference)
+            var order = string.IsNullOrEmpty(preferredType) ? Preference : new[] { preferredType }.Concat(Preference);
+            foreach (var type in order)
             {
                 var pick = c.Resources.FirstOrDefault(r => string.Equals(r.TypeName, type, StringComparison.OrdinalIgnoreCase) &&
                     !string.IsNullOrEmpty(r.Location) && !NonWindows.IsMatch(r.Title ?? ""));

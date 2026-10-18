@@ -36,20 +36,27 @@ namespace PowerScap.Engine.Profile
         public static IList<BenchmarkMatch> Match(SystemProfile profile, IList<NcpChecklist> catalog)
         {
             var result = new List<BenchmarkMatch>();
-            var hostOs = new HashSet<string>(profile.Products.Where(p => IsOperatingSystem(p.NcpTarget)).Select(p => p.NcpTarget), StringComparer.OrdinalIgnoreCase);
             foreach (var c in catalog)
             {
-                // NCP target lists are loose: the Windows 2008 STIG lists "Microsoft Windows Defender". A checklist
-                // that targets an operating system is for that operating system only.
-                var osTargets = c.Targets.Where(IsOperatingSystem).ToList();
-                if (osTargets.Count > 0 && !osTargets.Any(hostOs.Contains)) continue;
-                var product = profile.Products.FirstOrDefault(p => c.Targets.Any(t => string.Equals(t, p.NcpTarget, StringComparison.OrdinalIgnoreCase)));
+                var product = ProductFor(profile, c.Targets);
                 if (product == null) continue;
                 var resource = NcpClient.PickScapResource(c);
                 if (resource == null) continue;
                 result.Add(new BenchmarkMatch { Checklist = c, Resource = resource, Product = product });
             }
             return result.OrderBy(m => m.Checklist.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        /// <summary>The detected product a checklist with these NCP targets is for, or null.</summary>
+        public static DetectedProduct ProductFor(SystemProfile profile, IList<string> targets)
+        {
+            if (profile == null || targets == null) return null;
+            var hostOs = new HashSet<string>(profile.Products.Where(p => IsOperatingSystem(p.NcpTarget)).Select(p => p.NcpTarget), StringComparer.OrdinalIgnoreCase);
+            // NCP target lists are loose: the Windows 2008 STIG lists "Microsoft Windows Defender". A checklist
+            // that targets an operating system is for that operating system only.
+            var osTargets = targets.Where(IsOperatingSystem).ToList();
+            if (osTargets.Count > 0 && !osTargets.Any(hostOs.Contains)) return null;
+            return profile.Products.FirstOrDefault(p => targets.Any(t => string.Equals(t, p.NcpTarget, StringComparison.OrdinalIgnoreCase)));
         }
     }
 }

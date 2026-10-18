@@ -1,0 +1,619 @@
+<!-- PowerSCAP main window. DataContext: PowerScap.Gui.MainViewModel. Loose XAML: no code-behind, commands and bindings only. -->
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PowerSCAP" Width="1380" Height="880" MinWidth="1040" MinHeight="640"
+        WindowStartupLocation="CenterScreen" UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        Background="{DynamicResource Bg}" Foreground="{DynamicResource Text}" FontFamily="Segoe UI" FontSize="13">
+    <Window.Resources>
+        <!-- Score tiles: a ListBox of cards. -->
+        <Style x:Key="TileItem" TargetType="ListBoxItem">
+            <Setter Property="Margin" Value="0,0,12,12"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="b" Width="232" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Padding="14,12">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="{DynamicResource Surface2}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="b" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                                <Setter TargetName="b" Property="BorderThickness" Value="2"/>
+                                <Setter TargetName="b" Property="Padding" Value="13,11"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ScoreText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="28"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource Pass}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Kind}" Value="warn"><Setter Property="Foreground" Value="{DynamicResource Warn}"/></DataTrigger>
+                <DataTrigger Binding="{Binding Kind}" Value="fail"><Setter Property="Foreground" Value="{DynamicResource Fail}"/></DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="JobState" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextDim}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding State}" Value="Running"><Setter Property="Foreground" Value="{DynamicResource Accent}"/></DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="Completed"><Setter Property="Foreground" Value="{DynamicResource Pass}"/></DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="Failed"><Setter Property="Foreground" Value="{DynamicResource Fail}"/></DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="Cancelled"><Setter Property="Foreground" Value="{DynamicResource Warn}"/></DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="Section" TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+            <Setter Property="Margin" Value="0,16,0,6"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="212"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Side rail -->
+        <Border Background="{DynamicResource Rail}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0">
+            <DockPanel LastChildFill="False">
+                <StackPanel DockPanel.Dock="Top" Margin="20,22,16,22">
+                    <TextBlock Text="PowerSCAP" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource Text}"/>
+                    <TextBlock Text="SCAP compliance scanner" Style="{StaticResource Dim}" FontSize="12"/>
+                </StackPanel>
+                <RadioButton DockPanel.Dock="Top" GroupName="nav" Style="{StaticResource Nav}" Content="1   System"
+                             IsChecked="{Binding Page, Converter={StaticResource EqualsTo}, ConverterParameter=System}"/>
+                <RadioButton DockPanel.Dock="Top" GroupName="nav" Style="{StaticResource Nav}" Content="2   Content"
+                             IsChecked="{Binding Page, Converter={StaticResource EqualsTo}, ConverterParameter=Content}"/>
+                <RadioButton DockPanel.Dock="Top" GroupName="nav" Style="{StaticResource Nav}"
+                             IsChecked="{Binding Page, Converter={StaticResource EqualsTo}, ConverterParameter=Scan}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="3   Scan"/>
+                        <Border Style="{StaticResource Badge}" Background="{DynamicResource AccentSoft}" Margin="8,0,0,0"
+                                Visibility="{Binding Scan.IsRunning, Converter={StaticResource BoolToVisible}}">
+                            <TextBlock Text="running" FontSize="10" Foreground="{DynamicResource Accent}"/>
+                        </Border>
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton DockPanel.Dock="Top" GroupName="nav" Style="{StaticResource Nav}" Content="4   Results"
+                             IsChecked="{Binding Page, Converter={StaticResource EqualsTo}, ConverterParameter=Results}"/>
+
+                <StackPanel DockPanel.Dock="Bottom" Margin="20,8,16,18">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="{DynamicResource Warn}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsElevated}" Value="True"><Setter Property="Fill" Value="{DynamicResource Pass}"/></DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding ElevationText}" Style="{StaticResource Dim}" FontSize="12"/>
+                    </StackPanel>
+                </StackPanel>
+                <RadioButton DockPanel.Dock="Bottom" GroupName="nav" Style="{StaticResource Nav}" Content="Settings"
+                             IsChecked="{Binding Page, Converter={StaticResource EqualsTo}, ConverterParameter=Settings}"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Page area -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Border Style="{StaticResource Banner}" Margin="24,16,24,0"
+                    Visibility="{Binding IsElevated, Converter={StaticResource EmptyToVisible}}">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Restart as administrator" Command="{Binding RestartElevatedCommand}" Margin="12,0,0,0"/>
+                    <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
+                               Text="PowerSCAP is not running as administrator. Many checks need elevation, so scans are blocked until you restart elevated."/>
+                </DockPanel>
+            </Border>
+
+            <!-- 1. System -->
+            <Grid Grid.Row="1" Margin="24,20,24,12" Visibility="{Binding DataContext.IsSystemPage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisible}}" DataContext="{Binding System}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshCommand}" VerticalAlignment="Center"/>
+                    <StackPanel>
+                        <TextBlock Text="System" Style="{StaticResource H1}"/>
+                        <TextBlock Text="This machine and the STIG-relevant products installed on it." Style="{StaticResource Dim}"/>
+                    </StackPanel>
+                </DockPanel>
+                <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,18,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Margin="0,0,16,14">
+                            <TextBlock Text="COMPUTER" Style="{StaticResource Caption}"/>
+                            <TextBlock Text="{Binding Profile.ComputerName}" FontSize="16" FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="0,0,16,14">
+                            <TextBlock Text="OPERATING SYSTEM" Style="{StaticResource Caption}"/>
+                            <TextBlock Text="{Binding Profile.OsCaption}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Margin="0,0,0,14">
+                            <TextBlock Text="BUILD" Style="{StaticResource Caption}"/>
+                            <TextBlock Text="{Binding Profile.OsBuild}" FontSize="16" FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Margin="0,0,16,0">
+                            <TextBlock Text="EDITION" Style="{StaticResource Caption}"/>
+                            <TextBlock Text="{Binding Profile.OsEdition}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,16,0">
+                            <TextBlock Text="ARCHITECTURE" Style="{StaticResource Caption}"/>
+                            <TextBlock Text="{Binding Profile.Architecture}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="2">
+                            <TextBlock Text="DOMAIN / WORKGROUP" Style="{StaticResource Caption}"/>
+                            <TextBlock Text="{Binding Profile.DomainOrWorkgroup}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,14,0,0" Padding="0">
+                    <DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="16,14,16,8">
+                            <TextBlock DockPanel.Dock="Right" Text="Detecting..." Style="{StaticResource Dim}" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisible}}"/>
+                            <TextBlock Text="Detected products" Style="{StaticResource H2}"/>
+                        </DockPanel>
+                        <DataGrid ItemsSource="{Binding Products}" Margin="8,0,8,8">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="PRODUCT" Binding="{Binding Name}" Width="2*"/>
+                                <DataGridTextColumn Header="VERSION" Binding="{Binding Version}" Width="*"/>
+                                <DataGridTextColumn Header="NCP TARGET" Binding="{Binding NcpTarget}" Width="2*"/>
+                                <DataGridTextColumn Header="EVIDENCE" Binding="{Binding Evidence}" Width="3*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+            </Grid>
+
+            <!-- 2. Content -->
+            <Grid Grid.Row="1" Margin="24,20,24,12" Visibility="{Binding DataContext.IsContentPage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisible}}" DataContext="{Binding Content}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="3*" MinHeight="200"/>
+                    <RowDefinition Height="2*" MinHeight="180"/>
+                </Grid.RowDefinitions>
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="Check for updates" Command="{Binding CheckUpdatesCommand}" Margin="0,0,8,0"/>
+                        <Button Content="Import file..." Command="{Binding ImportCommand}"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="Content" Style="{StaticResource H1}"/>
+                        <TextBlock Text="Choose the benchmarks to scan. Content is cached locally and works offline." Style="{StaticResource Dim}"/>
+                    </StackPanel>
+                </DockPanel>
+
+                <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,18,0,0" Padding="0">
+                    <DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="16,14,16,8">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource Link}" Content="Select detected" Command="{Binding SelectDetectedCommand}" VerticalAlignment="Center"/>
+                            <TextBlock DockPanel.Dock="Right" Text="Checking for updates...  " Style="{StaticResource Dim}" Visibility="{Binding IsChecking, Converter={StaticResource BoolToVisible}}"/>
+                            <TextBlock Text="Cached benchmarks" Style="{StaticResource H2}"/>
+                        </DockPanel>
+                        <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="16,10">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource Primary}" Content="{Binding ScanButtonText}" Command="{Binding ScanSelectedCommand}" Padding="18,8"/>
+                                <TextBlock VerticalAlignment="Center" Style="{StaticResource Dim}" Text="{Binding CacheMessage}"/>
+                            </DockPanel>
+                        </Border>
+                        <DataGrid ItemsSource="{Binding Items}" Margin="8,0,8,0">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Width="44">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanScan}" HorizontalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="BENCHMARK" Width="3*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="0,4">
+                                                <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                                                <WrapPanel Margin="0,3,0,0">
+                                                    <Border Style="{StaticResource Badge}" Background="{DynamicResource AccentSoft}" Visibility="{Binding Detected, Converter={StaticResource BoolToVisible}}">
+                                                        <TextBlock Text="Detected" FontSize="11" Foreground="{DynamicResource Accent}"/>
+                                                    </Border>
+                                                    <Button Style="{StaticResource Link}" Command="{Binding DataContext.DownloadUpdateCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"
+                                                            Visibility="{Binding UpdateAvailable, Converter={StaticResource BoolToVisible}}" Margin="0,0,6,0">
+                                                        <Border Style="{StaticResource Badge}" Background="{DynamicResource WarnSoft}" Margin="0">
+                                                            <TextBlock Text="Update available - download" FontSize="11" Foreground="{DynamicResource Warn}"/>
+                                                        </Border>
+                                                    </Button>
+                                                    <Border Style="{StaticResource Badge}" Background="{DynamicResource FailSoft}" Visibility="{Binding SignatureInvalid, Converter={StaticResource BoolToVisible}}">
+                                                        <TextBlock Text="Invalid signature - re-download" FontSize="11" Foreground="{DynamicResource Fail}"/>
+                                                    </Border>
+                                                    <TextBlock Text="{Binding ProfileError}" Foreground="{DynamicResource Fail}" FontSize="11" TextWrapping="Wrap"/>
+                                                </WrapPanel>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="VERSION" Binding="{Binding Version}" Width="100"/>
+                                <DataGridTemplateColumn Header="PROFILE" Width="2*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding Profile, UpdateSourceTrigger=PropertyChanged}" DisplayMemberPath="Title"
+                                                          Visibility="{Binding ProfilesLoading, Converter={StaticResource EmptyToVisible}}"/>
+                                                <TextBlock Text="Reading profiles..." Style="{StaticResource Dim}" Visibility="{Binding ProfilesLoading, Converter={StaticResource BoolToVisible}}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="SIGNATURE" Binding="{Binding SignatureText}" Width="180"/>
+                                <DataGridTextColumn Header="ADDED" Binding="{Binding Added}" Width="96"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+
+                <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,14,0,0" Padding="0">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Margin="16,14,16,8">
+                            <TextBlock Text="NIST National Checklist Program" Style="{StaticResource H2}"/>
+                            <DockPanel Margin="0,10,0,0">
+                                <Button DockPanel.Dock="Right" Content="Find for this system" Command="{Binding FindForSystemCommand}" Margin="8,0,0,0"/>
+                                <Button DockPanel.Dock="Right" Content="Search" Command="{Binding SearchCommand}" Margin="8,0,0,0" IsDefault="{Binding IsKeyboardFocusWithin, ElementName=searchBox}"/>
+                                <TextBox x:Name="searchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Keyword, e.g. Windows 11, Edge, Chrome"/>
+                            </DockPanel>
+                            <TextBlock Text="{Binding CatalogMessage}" Style="{StaticResource Dim}" Margin="0,8,0,0"
+                                       Visibility="{Binding CatalogMessage, Converter={StaticResource PresentToVisible}}"/>
+                        </StackPanel>
+                        <DataGrid ItemsSource="{Binding Catalog}" Margin="8,0,8,8">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="CHECKLIST" Width="3*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                <Border Style="{StaticResource Badge}" Background="{DynamicResource AccentSoft}" Margin="8,0,0,0" Visibility="{Binding Detected, Converter={StaticResource BoolToVisible}}">
+                                                    <TextBlock Text="Detected" FontSize="11" Foreground="{DynamicResource Accent}"/>
+                                                </Border>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="VERSION" Binding="{Binding Version}" Width="*"/>
+                                <DataGridTextColumn Header="CONTENT" Binding="{Binding ResourceType}" Width="*"/>
+                                <DataGridTextColumn Header="UPDATED" Binding="{Binding Updated}" Width="96"/>
+                                <DataGridTemplateColumn Width="150">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <Button Content="Download" Padding="10,3" HorizontalAlignment="Left"
+                                                        Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"
+                                                        Visibility="{Binding State, Converter={StaticResource EmptyToVisible}}"/>
+                                                <TextBlock Text="{Binding State}" Style="{StaticResource Dim}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+            </Grid>
+
+            <!-- 3. Scan -->
+            <Grid Grid.Row="1" Margin="24,20,24,12" Visibility="{Binding DataContext.IsScanPage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisible}}" DataContext="{Binding Scan}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="Cancel scan" Command="{Binding CancelCommand}" Margin="0,0,8,0"/>
+                        <Button Content="Open output folder" Command="{Binding OpenFolderCommand}" Margin="0,0,8,0"/>
+                        <Button Content="Summary page" Command="{Binding OpenSummaryCommand}" Margin="0,0,8,0"/>
+                        <Button Style="{StaticResource Primary}" Content="View results" Command="{Binding ViewResultsCommand}"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="Scan" Style="{StaticResource H1}"/>
+                        <TextBlock Text="Benchmarks run one after another. Past results stay browsable while a scan runs." Style="{StaticResource Dim}"/>
+                    </StackPanel>
+                </DockPanel>
+                <TextBlock Grid.Row="1" Text="{Binding BatchMessage}" Margin="0,14,0,0" TextWrapping="Wrap"
+                           Visibility="{Binding BatchMessage, Converter={StaticResource PresentToVisible}}"/>
+                <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,14,0,0" VerticalAlignment="Top"
+                        Visibility="{Binding HasNoJobs, Converter={StaticResource BoolToVisible}}">
+                    <TextBlock Text="Nothing has been scanned in this session. Choose benchmarks on the Content page, then Scan." Style="{StaticResource Dim}"/>
+                </Border>
+                <ScrollViewer Grid.Row="2" Margin="0,14,0,0" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Jobs}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}" Style="{StaticResource H2}" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding ProfileTitle}" Style="{StaticResource Dim}" FontSize="12"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" HorizontalAlignment="Right" Margin="16,0,0,0">
+                                            <TextBlock Text="{Binding State}" Style="{StaticResource JobState}" HorizontalAlignment="Right"/>
+                                            <TextBlock Text="{Binding ElapsedText}" Style="{StaticResource Dim}" HorizontalAlignment="Right" FontSize="12"/>
+                                        </StackPanel>
+                                        <ProgressBar Grid.Row="1" Grid.ColumnSpan="2" Margin="0,12,0,8" Maximum="100" Value="{Binding Percent, Mode=OneWay}"/>
+                                        <DockPanel Grid.Row="2" Grid.ColumnSpan="2">
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding CurrentRule}" Style="{StaticResource Dim}" FontFamily="{StaticResource Mono}" FontSize="11"
+                                                       Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisible}}"/>
+                                            <TextBlock Text="{Binding ProgressText}" TextWrapping="Wrap"/>
+                                        </DockPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- 4. Results -->
+            <Grid Grid.Row="1" Margin="24,20,24,12" Visibility="{Binding DataContext.IsResultsPage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisible}}" DataContext="{Binding Results}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="All-Settings report" Command="{Binding OpenFileCommand}" CommandParameter="All-Settings" Margin="0,0,8,0"/>
+                        <Button Content="Non-Compliance report" Command="{Binding OpenFileCommand}" CommandParameter="Non-Compliance" Margin="0,0,8,0"/>
+                        <Button Content="Checklist (.cklb)" Command="{Binding OpenFileCommand}" CommandParameter="Checklist" Margin="0,0,8,0"/>
+                        <Button Content="Show files" Command="{Binding OpenFolderCommand}" Margin="0,0,8,0"/>
+                        <Button Content="Refresh" Command="{Binding RefreshCommand}"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="Results" Style="{StaticResource H1}"/>
+                        <TextBlock Text="{Binding ReportHeader}" Style="{StaticResource Dim}" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </DockPanel>
+
+                <TextBlock Grid.Row="1" Text="{Binding Message}" Style="{StaticResource Dim}" Margin="0,14,0,0"
+                           Visibility="{Binding Message, Converter={StaticResource PresentToVisible}}"/>
+
+                <ListBox Grid.Row="1" ItemsSource="{Binding Tiles}" SelectedItem="{Binding SelectedTile}" ItemContainerStyle="{StaticResource TileItem}"
+                         Background="Transparent" BorderThickness="0" Margin="0,16,0,0" MaxHeight="290"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" Height="34" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"/>
+                                <TextBlock Text="{Binding ScoreText}" Style="{StaticResource ScoreText}" Margin="0,4,0,2"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="CAT I " Style="{StaticResource Dim}" FontSize="12"/><TextBlock Text="{Binding Cat1}" FontWeight="SemiBold" FontSize="12" Margin="0,0,10,0"/>
+                                    <TextBlock Text="CAT II " Style="{StaticResource Dim}" FontSize="12"/><TextBlock Text="{Binding Cat2}" FontWeight="SemiBold" FontSize="12" Margin="0,0,10,0"/>
+                                    <TextBlock Text="CAT III " Style="{StaticResource Dim}" FontSize="12"/><TextBlock Text="{Binding Cat3}" FontWeight="SemiBold" FontSize="12"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding When}" Style="{StaticResource Dim}" FontSize="11" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- Filters -->
+                <Grid Grid.Row="2" Margin="0,4,0,0" Visibility="{Binding Report, Converter={StaticResource PresentToVisible}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <WrapPanel>
+                        <StackPanel Margin="0,0,12,8">
+                            <TextBlock Text="SCAN" Style="{StaticResource Caption}"/>
+                            <ComboBox Width="190" ItemsSource="{Binding SelectedTile.Runs}" SelectedItem="{Binding SelectedRun}" DisplayMemberPath="Label"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,12,8">
+                            <TextBlock Text="STATUS" Style="{StaticResource Caption}"/>
+                            <ComboBox Width="140" ItemsSource="{Binding Statuses}" SelectedItem="{Binding StatusFilter}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,12,8">
+                            <TextBlock Text="SEVERITY" Style="{StaticResource Caption}"/>
+                            <ComboBox Width="100" ItemsSource="{Binding Cats}" SelectedItem="{Binding CatFilter}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,12,8">
+                            <TextBlock Text="SOURCE" Style="{StaticResource Caption}"/>
+                            <ComboBox Width="90" ItemsSource="{Binding Sources}" SelectedItem="{Binding SourceFilter}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,12,8">
+                            <TextBlock Text="SEARCH" Style="{StaticResource Caption}"/>
+                            <TextBox Width="240" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=150}" ToolTip="Title, V-ID, STIG ID, rule ID or CCI"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,12,8" VerticalAlignment="Bottom">
+                            <CheckBox Content="Changed since previous scan" IsChecked="{Binding ChangedOnly}" IsEnabled="{Binding HasPrevious}" Margin="0,0,0,7"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,8" VerticalAlignment="Bottom">
+                            <Button Style="{StaticResource Link}" Content="Clear filters" Command="{Binding ClearFiltersCommand}" Margin="0,0,0,7"/>
+                        </StackPanel>
+                    </WrapPanel>
+                    <TextBlock Grid.Row="1" Text="{Binding Counts}" Style="{StaticResource Dim}" FontSize="12" Margin="0,0,0,8"/>
+                </Grid>
+
+                <Grid Grid.Row="3" Visibility="{Binding Report, Converter={StaticResource PresentToVisible}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="380"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource Card}" Padding="0">
+                        <DataGrid ItemsSource="{Binding RowsView}" SelectedItem="{Binding SelectedRow}" Margin="6,0,6,6">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="STATUS" Width="118" SortMemberPath="Status">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel>
+                                                <Border Style="{StaticResource StatusPill}">
+                                                    <TextBlock Text="{Binding Status}" Style="{StaticResource StatusText}"/>
+                                                </Border>
+                                                <TextBlock Text="{Binding ChangeText}" Foreground="{DynamicResource Warn}" FontSize="10" Margin="2,1,0,0"
+                                                           Visibility="{Binding Changed, Converter={StaticResource BoolToVisible}}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="SEVERITY" Binding="{Binding Cat}" Width="70"/>
+                                <DataGridTextColumn Header="V-ID" Binding="{Binding GroupId}" Width="82"/>
+                                <DataGridTextColumn Header="STIG ID" Binding="{Binding StigId}" Width="122"/>
+                                <DataGridTemplateColumn Header="TITLE" Width="*" SortMemberPath="Title">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <!-- Rule detail -->
+                    <Border Grid.Column="1" Style="{StaticResource Card}" Width="440" Margin="12,0,0,0" Padding="0"
+                            Visibility="{Binding SelectedRow, Converter={StaticResource PresentToVisible}}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" DataContext="{Binding SelectedRow}">
+                            <StackPanel Margin="18,16,18,18">
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource StatusPill}"><TextBlock Text="{Binding Status}" Style="{StaticResource StatusText}"/></Border>
+                                    <Border Style="{StaticResource Badge}" Background="{DynamicResource NeutralSoft}"><TextBlock Text="{Binding Cat}" FontSize="11"/></Border>
+                                    <Border Style="{StaticResource Badge}" Background="{DynamicResource NeutralSoft}"><TextBlock Text="{Binding Source}" FontSize="11"/></Border>
+                                    <TextBlock Text="{Binding ChangeText}" Foreground="{DynamicResource Warn}" FontSize="12" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBox Text="{Binding Title, Mode=OneWay}" Style="{StaticResource Reader}" FontSize="15" FontWeight="SemiBold" Margin="0,10,0,0"/>
+                                <TextBox Style="{StaticResource Reader}" Foreground="{DynamicResource TextDim}" FontSize="12" Margin="0,6,0,0" FontFamily="{StaticResource Mono}">
+                                    <TextBox.Text>
+                                        <MultiBinding StringFormat="{}{0}   {1}&#x0a;{2}&#x0a;{3}" Mode="OneWay">
+                                            <Binding Path="GroupId"/>
+                                            <Binding Path="StigId"/>
+                                            <Binding Path="RuleId"/>
+                                            <Binding Path="Ccis"/>
+                                        </MultiBinding>
+                                    </TextBox.Text>
+                                </TextBox>
+                                <TextBlock Text="FINDING DETAILS" Style="{StaticResource Section}"/>
+                                <Border Background="{DynamicResource Surface2}" CornerRadius="6" Padding="10">
+                                    <TextBox Text="{Binding Details, Mode=OneWay}" Style="{StaticResource Reader}" FontFamily="{StaticResource Mono}" FontSize="12"/>
+                                </Border>
+                                <TextBlock Text="DISCUSSION" Style="{StaticResource Section}"/>
+                                <TextBox Text="{Binding Discussion, Mode=OneWay}" Style="{StaticResource Reader}"/>
+                                <TextBlock Text="CHECK" Style="{StaticResource Section}"/>
+                                <TextBox Text="{Binding CheckText, Mode=OneWay}" Style="{StaticResource Reader}"/>
+                                <TextBlock Text="FIX" Style="{StaticResource Section}"/>
+                                <TextBox Text="{Binding FixText, Mode=OneWay}" Style="{StaticResource Reader}"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <!-- Settings -->
+            <ScrollViewer Grid.Row="1" Margin="24,20,24,12" VerticalScrollBarVisibility="Auto"
+                          Visibility="{Binding IsSettingsPage, Converter={StaticResource BoolToVisible}}">
+                <StackPanel DataContext="{Binding Options}" MaxWidth="820" HorizontalAlignment="Left">
+                    <TextBlock Text="Settings" Style="{StaticResource H1}"/>
+                    <TextBlock Text="Changes are saved as you make them." Style="{StaticResource Dim}"/>
+
+                    <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Appearance" Style="{StaticResource H2}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                <RadioButton GroupName="theme" Style="{StaticResource Chip}" Content="Dark" IsChecked="{Binding Theme, Converter={StaticResource EqualsTo}, ConverterParameter=Dark}"/>
+                                <RadioButton GroupName="theme" Style="{StaticResource Chip}" Content="Light" IsChecked="{Binding Theme, Converter={StaticResource EqualsTo}, ConverterParameter=Light}"/>
+                                <RadioButton GroupName="theme" Style="{StaticResource Chip}" Content="Follow Windows" IsChecked="{Binding Theme, Converter={StaticResource EqualsTo}, ConverterParameter=System}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Folders" Style="{StaticResource H2}"/>
+                            <TextBlock Text="RESULTS FOLDER" Style="{StaticResource Section}"/>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="Browse..." Command="{Binding BrowseOutputCommand}" Margin="8,0,0,0"/>
+                                <TextBox Text="{Binding OutputPath, UpdateSourceTrigger=LostFocus}"/>
+                            </DockPanel>
+                            <TextBlock Text="CONTENT CACHE" Style="{StaticResource Section}"/>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="Open" Command="{Binding OpenCacheCommand}" Margin="8,0,0,0"/>
+                                <Button DockPanel.Dock="Right" Content="Browse..." Command="{Binding BrowseCacheCommand}" Margin="8,0,0,0"/>
+                                <TextBox Text="{Binding CacheRoot, UpdateSourceTrigger=LostFocus}"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Content" Style="{StaticResource H2}"/>
+                            <CheckBox Content="Check NIST NCP for content updates when PowerSCAP opens" IsChecked="{Binding CheckUpdatesOnLaunch}" Margin="0,12,0,0"/>
+                            <TextBlock Text="PREFERRED CONTENT" Style="{StaticResource Section}"/>
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton GroupName="flavor" Style="{StaticResource Chip}" Content="SCAP 1.4 (NIWC enhanced)" IsChecked="{Binding Flavor, Converter={StaticResource EqualsTo}, ConverterParameter='SCAP 1.4 Content'}"/>
+                                <RadioButton GroupName="flavor" Style="{StaticResource Chip}" Content="SCAP 1.3 (DISA)" IsChecked="{Binding Flavor, Converter={StaticResource EqualsTo}, ConverterParameter='SCAP 1.3 Content'}"/>
+                            </StackPanel>
+                            <TextBlock Text="Used for new downloads. A checklist without the preferred kind falls back to the other." Style="{StaticResource Dim}" FontSize="12" Margin="0,6,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Outputs" Style="{StaticResource H2}"/>
+                            <TextBlock Text="XCCDF results are always written. Also write:" Style="{StaticResource Dim}" Margin="0,6,0,4"/>
+                            <CheckBox Content="HTML reports (All-Settings and Non-Compliance)" IsChecked="{Binding Html}" Margin="0,6,0,0"/>
+                            <CheckBox Content="STIG Viewer checklist (.cklb)" IsChecked="{Binding Cklb}" Margin="0,8,0,0"/>
+                            <CheckBox Content="OVAL results" IsChecked="{Binding Oval}" Margin="0,8,0,0"/>
+                            <CheckBox Content="ARF (Asset Reporting Format)" IsChecked="{Binding Arf}" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Scanning" Style="{StaticResource H2}"/>
+                            <CheckBox Content="Allow scans without administrator rights" IsChecked="{Binding AllowUnelevated}" Margin="0,12,0,0"/>
+                            <TextBlock Text="For testing only. Checks that need elevation report errors, so results will not match a validated scanner." Style="{StaticResource Dim}" FontSize="12" Margin="26,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Status line -->
+            <Border Grid.Row="2" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="24,7">
+                <TextBlock Text="{Binding Status}" Style="{StaticResource Dim}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

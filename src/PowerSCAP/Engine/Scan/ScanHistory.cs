@@ -21,6 +21,10 @@ namespace PowerScap.Engine.Scan
         public DateTime Start { get; set; }
         public double Score { get; set; }
         public int Open { get; set; }
+        /// <summary>Open findings per category.</summary>
+        public int Cat1 { get; set; }
+        public int Cat2 { get; set; }
+        public int Cat3 { get; set; }
         public int Passed { get; set; }
         public int Errors { get; set; }
         public int NotReviewed { get; set; }
@@ -69,6 +73,9 @@ namespace PowerScap.Engine.Scan
                 Start = report.Start,
                 Score = report.DefaultScore,
                 Open = report.Count(XccdfResult.Fail),
+                Cat1 = report.Open("CAT I"),
+                Cat2 = report.Open("CAT II"),
+                Cat3 = report.Open("CAT III"),
                 Passed = report.Count(XccdfResult.Pass),
                 Errors = report.Count(XccdfResult.Error) + report.Count(XccdfResult.Unknown),
                 NotReviewed = report.Count(XccdfResult.NotChecked)
