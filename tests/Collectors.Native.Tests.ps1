@@ -132,11 +132,14 @@ Describe 'Native PowerShell snippets match PowerShell' {
     It 'get-winevent returns the newest events with their message first lines' {
         $expected = @(Get-WinEvent -LogName Application -MaxEvents 3)
         $o = Invoke-Native 'powershell' 'get-winevent -logname Application -MaxEvents 3'
-        $rows = @($o.Stdout | Where-Object { $_ -match '^\S.*\s\d+ \S' -and $_ -notmatch '^(TimeCreated|-----)' })
+        # Event rows are every line but blanks, provider headings and column headers. Matching on row text would
+        # miss events with no level or message (common on build servers), whose rows end right after the Id.
+        $rows = @($o.Stdout | Where-Object { $_.Trim() -and $_ -notmatch '^\s*ProviderName:' -and $_ -notmatch '^(TimeCreated|-----)' })
         $rows.Count | Should Be 3
         for ($i = 0; $i -lt 3; $i++) {
+            $rows[$i] | Should Match ('\s' + $expected[$i].Id + '\b')
             $first = ("$($expected[$i].Message)" -split "`r?`n")[0]
-            $rows[$i].EndsWith($first) -or $rows[$i].EndsWith($first + '...') | Should Be $true
+            $rows[$i].TrimEnd().EndsWith($first.TrimEnd()) -or $rows[$i].EndsWith($first + '...') | Should Be $true
         }
     }
 
