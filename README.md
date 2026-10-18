@@ -16,8 +16,8 @@ Two rules drive the project:
 
 - **Results must match a validated scanner 1:1.** SCAP is black and white. Every difference from SCC is
   investigated and written up in [docs/parity.md](docs/parity.md). On the reference machine, 500 of 502 rules
-  across seven benchmarks match SCC 5.15. The other two are explained there: one setting changed on the machine
-  between the runs, and one rule now follows what the STIG says.
+  across seven benchmarks match SCC 5.15. The other two are machine changes between the scans (a log size and the
+  antivirus's running state), not differences in evaluation: given the same collected values, both tools agree.
 - **Remove human error wherever possible.** PowerSCAP finds which benchmarks apply, downloads and verifies them,
   and puts the expected and collected values next to every finding. You don't have to interpret raw OVAL.
 
