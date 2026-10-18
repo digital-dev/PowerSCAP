@@ -197,6 +197,7 @@ namespace PowerScap.Gui
         {
             session.AddRange(reports);
             if (reports.Count > 0) Refresh(reports[0].BenchmarkId);
+            if (reports.Any(r => r.Files != null && r.Files.ContainsKey("Checklist"))) main.Checklist.RefreshList(null);
         }
 
         public void Refresh() { Refresh(null); }

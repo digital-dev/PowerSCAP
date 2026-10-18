@@ -570,15 +570,20 @@
                 <TextBlock Grid.Row="1" Text="{Binding Message}" Style="{StaticResource Dim}" Margin="0,14,0,0"
                            Visibility="{Binding Message, Converter={StaticResource PresentToVisible}}"/>
 
-                <Grid Grid.Row="2" Margin="0,14,0,0" Visibility="{Binding HasFile, Converter={StaticResource BoolToVisible}}">
+                <Grid Grid.Row="2" Margin="0,14,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <WrapPanel>
                         <StackPanel Margin="0,0,12,8">
+                            <TextBlock Text="CHECKLIST" Style="{StaticResource Caption}"/>
+                            <ComboBox Width="560" ItemsSource="{Binding Available}" SelectedItem="{Binding SelectedListing}" DisplayMemberPath="Label"
+                                      MaxDropDownHeight="420" ToolTip="{Binding SelectedListing.Path}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,12,8" Visibility="{Binding HasManyStigs, Converter={StaticResource BoolToVisible}}">
                             <TextBlock Text="STIG" Style="{StaticResource Caption}"/>
-                            <ComboBox Width="540" ItemsSource="{Binding Stigs}" SelectedItem="{Binding SelectedStig}"/>
+                            <ComboBox Width="420" ItemsSource="{Binding Stigs}" SelectedItem="{Binding SelectedStig}"/>
                         </StackPanel>
                         <StackPanel Margin="0,0,12,8">
                             <TextBlock Text="STATUS" Style="{StaticResource Caption}"/>

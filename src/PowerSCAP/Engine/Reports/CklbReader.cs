@@ -41,9 +41,96 @@ namespace PowerScap.Engine.Reports
         public List<ChecklistStig> Stigs { get; private set; }
     }
 
+    /// <summary>A checklist file as a picker lists it, described without parsing every rule.</summary>
+    public class ChecklistListing
+    {
+        public string Path { get; set; }
+        /// <summary>The first STIG's name, with "+ n more" when the file holds several.</summary>
+        public string Title { get; set; }
+        /// <summary>PowerSCAP, SCC, or Checklist (another tool, such as STIG Viewer).</summary>
+        public string Tool { get; set; }
+        public DateTime When { get; set; }
+
+        public string Label
+        {
+            get { return string.Format(CultureInfo.CurrentCulture, "{0}   {1:yyyy-MM-dd HH:mm}   {2}", Title, When, Tool); }
+        }
+
+        public override string ToString() { return Label; }
+    }
+
     /// <summary>Reads .cklb JSON. Read-only: PowerSCAP shows checklists; editing them is STIG Viewer's job.</summary>
     public static class CklbReader
     {
+        static readonly System.Text.RegularExpressions.Regex StigName =
+            new System.Text.RegularExpressions.Regex("\"stig_name\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+        static readonly System.Text.RegularExpressions.Regex DocTitle =
+            new System.Text.RegularExpressions.Regex("\"title\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        static extern uint GetLongPathName(string shortPath, StringBuilder longPath, uint size);
+
+        /// <summary>
+        /// One spelling per file: full path with 8.3 short names expanded ("C:\Users\ANDROM~1" and "C:\Users\andromeda"
+        /// are the same folder), so the same checklist is never listed twice or missed in a comparison.
+        /// </summary>
+        public static string Canonical(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return path;
+            string full = System.IO.Path.GetFullPath(path);
+            var sb = new StringBuilder(1024);
+            uint n = GetLongPathName(full, sb, (uint)sb.Capacity);
+            return n > 0 && n < sb.Capacity ? sb.ToString() : full;
+        }
+
+        /// <summary>Every .cklb in the folders (not their subfolders) and the listed files, newest first, each once.</summary>
+        public static IList<ChecklistListing> Find(IEnumerable<string> folders, IEnumerable<string> files)
+        {
+            var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var f in folders ?? new string[0])
+            {
+                if (string.IsNullOrEmpty(f) || !Directory.Exists(f)) continue;
+                try { foreach (var p in Directory.GetFiles(f, "*.cklb")) paths.Add(Canonical(p)); }
+                catch (UnauthorizedAccessException) { }
+                catch (IOException) { }
+            }
+            foreach (var f in files ?? new string[0])
+                if (!string.IsNullOrEmpty(f) && File.Exists(f)) paths.Add(Canonical(f));
+            var list = new List<ChecklistListing>();
+            foreach (var p in paths)
+            {
+                var d = Describe(p);
+                if (d != null) list.Add(d);
+            }
+            return list.OrderByDescending(x => x.When).ToList();
+        }
+
+        /// <summary>STIG name, tool and time from the file's text; null when it does not look like a checklist.</summary>
+        public static ChecklistListing Describe(string path)
+        {
+            string text;
+            try { text = File.ReadAllText(path, Encoding.UTF8); }
+            catch (IOException) { return null; }
+            catch (UnauthorizedAccessException) { return null; }
+            var names = StigName.Matches(text);
+            if (names.Count == 0) return null;
+            // "Microsoft Edge Security Technical Implementation Guide" reads as "Microsoft Edge STIG" in a picker.
+            string first = Unescape(names[0].Groups[1].Value).Replace("Security Technical Implementation Guide", "STIG");
+            string title = first + (names.Count > 1 ? " + " + (names.Count - 1) + " more" : "");
+            var t = DocTitle.Match(text);
+            string docTitle = t.Success ? Unescape(t.Groups[1].Value) : "";
+            string tool = docTitle.IndexOf("PowerSCAP", StringComparison.OrdinalIgnoreCase) >= 0 ? "PowerSCAP"
+                : docTitle.IndexOf("SCC", StringComparison.Ordinal) >= 0 || System.IO.Path.GetFileName(path).IndexOf("_SCC-", StringComparison.OrdinalIgnoreCase) >= 0 ? "SCC"
+                : "Checklist";
+            return new ChecklistListing { Path = Canonical(path), Title = title, Tool = tool, When = File.GetLastWriteTime(path) };
+        }
+
+        static string Unescape(string jsonString)
+        {
+            try { return new JavaScriptSerializer().Deserialize<string>("\"" + jsonString + "\""); }
+            catch (ArgumentException) { return jsonString; }
+        }
+
         public static ChecklistFile Read(string path)
         {
             object parsed;
@@ -60,7 +147,7 @@ namespace PowerScap.Engine.Reports
             if (doc == null || !doc.ContainsKey("stigs"))
                 throw new InvalidDataException("Not a .cklb checklist: it has no \"stigs\" list.");
 
-            var file = new ChecklistFile { Path = path, Title = Str(doc, "title") };
+            var file = new ChecklistFile { Path = Canonical(path), Title = Str(doc, "title") };
             var target = doc.ContainsKey("target_data") ? doc["target_data"] as IDictionary<string, object> : null;
             if (target != null)
             {

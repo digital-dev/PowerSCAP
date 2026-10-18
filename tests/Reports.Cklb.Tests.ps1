@@ -110,6 +110,29 @@ Describe 'CklbReader' {
             Should Be 'open|not_a_finding|not_applicable|not_reviewed'
     }
 
+    It 'lists checklists newest first, by STIG name and tool, each once' {
+        $list = New-Object 'System.Collections.Generic.List[string]'
+        $other = Join-Path $work 'other.cklb'
+        (Get-Item $other).LastWriteTime = (Get-Date).AddDays(-2)
+        $outside = Join-Path $env:TEMP ('powerscap-elsewhere-' + [guid]::NewGuid().ToString('N') + '.cklb')
+        Copy-Item (Get-ChildItem $work -Filter '*_Checklist.cklb' | Select-Object -First 1).FullName $outside
+        $list.Add($outside); $list.Add($other)
+        Set-Content (Join-Path $work 'notes.cklb') -Value 'not a checklist' -Encoding ASCII
+        $found = [PowerScap.Engine.Reports.CklbReader]::Find([string[]]@($work), $list)
+        Remove-Item (Join-Path $work 'notes.cklb'), $outside
+        $found.Count | Should Be 3
+        $found[0].When | Should Not BeLessThan $found[1].When
+        $canonical = [PowerScap.Engine.Reports.CklbReader]::Canonical($other)
+        ($found | Where-Object { $_.Path -eq $canonical }).Title | Should Be 'Example A STIG + 1 more'
+        ($found | Where-Object { $_.Path -eq $canonical }).Tool | Should Be 'Checklist'
+        @($found | Where-Object Tool -eq 'PowerSCAP').Count | Should Be 2
+        $found[-1].Path | Should Be $canonical
+        # A short (8.3) spelling of a listed file is the same file.
+        $short = (New-Object -ComObject Scripting.FileSystemObject).GetFile($other).ShortPath
+        $again = [PowerScap.Engine.Reports.CklbReader]::Find([string[]]@($work), [string[]]@($short))
+        @($again | Where-Object { $_.Path -eq $canonical }).Count | Should Be 1
+    }
+
     It 'says plainly when a file is not a checklist' {
         $bad = Join-Path $work 'bad.cklb'
         Set-Content $bad -Value 'not json' -Encoding ASCII

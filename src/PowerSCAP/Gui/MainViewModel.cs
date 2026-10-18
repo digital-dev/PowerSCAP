@@ -64,6 +64,7 @@ namespace PowerScap.Gui
                 if (!Set(ref page, value)) return;
                 Raise("IsSystemPage"); Raise("IsContentPage"); Raise("IsScanPage"); Raise("IsResultsPage"); Raise("IsChecklistPage"); Raise("IsSettingsPage");
                 if (value == "Results") Results.EnsureLoaded();
+                if (value == "Checklist") Checklist.EnsureListed();
             }
         }
 

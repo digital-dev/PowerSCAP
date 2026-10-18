@@ -28,6 +28,8 @@ namespace PowerScap.Engine.Scan
         public int Passed { get; set; }
         public int Errors { get; set; }
         public int NotReviewed { get; set; }
+        /// <summary>The scan's .cklb, when one was written (scans saved before this field have none recorded).</summary>
+        public string Checklist { get; set; }
 
         public override string ToString() { return string.Format("{0:yyyy-MM-dd HH:mm}  {1}", Start, Title); }
     }
@@ -78,7 +80,8 @@ namespace PowerScap.Engine.Scan
                 Cat3 = report.Open("CAT III"),
                 Passed = report.Count(XccdfResult.Pass),
                 Errors = report.Count(XccdfResult.Error) + report.Count(XccdfResult.Unknown),
-                NotReviewed = report.Count(XccdfResult.NotChecked)
+                NotReviewed = report.Count(XccdfResult.NotChecked),
+                Checklist = report.Files.ContainsKey("Checklist") ? report.Files["Checklist"] : null
             };
             var json = Json();
             File.WriteAllText(reportPath, json.Serialize(report), Encoding.UTF8);

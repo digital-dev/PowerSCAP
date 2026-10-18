@@ -38,6 +38,7 @@ Describe 'ScanRunner' {
         $list.Count | Should Be 1
         $list[0].BenchmarkId | Should Be $o.Report.BenchmarkId
         $list[0].Open | Should Be 1
+        $list[0].Checklist | Should Be $o.Report.Files['Checklist']
         $back = $h.Load($list[0].ReportPath)
         $back.Rules.Count | Should Be $o.Report.Rules.Count
         ($back.Rules | ForEach-Object { "$($_.RuleId)=$($_.Result)" }) -join ';' | Should Be (($o.Report.Rules | ForEach-Object { "$($_.RuleId)=$($_.Result)" }) -join ';')

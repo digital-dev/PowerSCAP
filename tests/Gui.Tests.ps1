@@ -204,10 +204,21 @@ Describe 'GUI window' -Tag Gui {
         $n = 0
         while ($vm.Checklist.IsLoading -and $n++ -lt 20) { Wait-Ui 0.25 }
         $vm.Checklist.Stigs.Count | Should Be 1
+        $vm.Checklist.HasManyStigs | Should Be $false
         $vm.Checklist.Rows.Count | Should Be $vm.Results.Rows.Count
         $vm.Checklist.StatusFilter = 'Open'
         @($vm.Checklist.RowsView).Count | Should Be @($vm.Results.Rows | Where-Object Status -eq 'Open').Count
         $vm.Checklist.StatusFilter = 'All'
+        # Both scans' checklists are offered, and the one asked for stays selected.
+        $n = 0
+        while ($vm.Checklist.Available.Count -lt 2 -and $n++ -lt 20) { Wait-Ui 0.25 }
+        $vm.Checklist.Available.Count | Should Be 2
+        $vm.Checklist.SelectedListing.Path | Should Be $vm.Checklist.File.Path
+        $other = $vm.Checklist.Available | Where-Object { $_.Path -ne $vm.Checklist.File.Path } | Select-Object -First 1
+        $vm.Checklist.SelectedListing = $other
+        $n = 0
+        while ($vm.Checklist.File.Path -ne $other.Path -and $n++ -lt 20) { Wait-Ui 0.25 }
+        $vm.Checklist.File.Path | Should Be $other.Path
     }
 
     It 'renders every page without binding errors' -Skip:(-not $isSta) {
