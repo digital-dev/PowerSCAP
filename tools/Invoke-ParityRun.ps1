@@ -25,9 +25,9 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
-Import-Module (Join-Path $repo 'src\PowerSCAP') -Force -WarningVariable importWarnings -WarningAction SilentlyContinue
+$module = Import-Module (Join-Path $repo 'src\PowerSCAP') -Force -PassThru
 # A window that loaded an older engine keeps it (.NET cannot unload assemblies); stop before SCC spends minutes scanning.
-if ($importWarnings | Where-Object { "$_" -match 'was updated after this PowerShell window loaded it' }) {
+if (& $module { $script:EngineStale }) {
     throw 'This PowerShell window is running an older PowerSCAP engine. Open a new elevated PowerShell window and run this again.'
 }
 $compare = Join-Path $PSScriptRoot 'Compare-XccdfResults.ps1'
@@ -50,7 +50,10 @@ if ($RunScc) {
 
     # One cscc run per benchmark PowerSCAP has cached, each from a temporary copy of SCC's options with only that
     # benchmark enabled (cscc -o, and -dn so nothing is written back): a crash in SCC then loses one benchmark, not the rest.
-    [xml]$options = Get-Content -LiteralPath (Join-Path $sccHome 'options.xml') -Raw
+    # Whitespace preserved: re-indenting turns empty elements into whitespace, which SCC's options schema rejects.
+    $options = New-Object Xml.XmlDocument
+    $options.PreserveWhitespace = $true
+    $options.Load((Join-Path $sccHome 'options.xml'))
     # Every enable-able entry (OVAL-only content has no benchmarkID) is switched off except the benchmark being run.
     $contents = @($options.SelectNodes('//content') | Where-Object { $_.SelectSingleNode('enabled') })
     foreach ($c in $contents) {
@@ -63,6 +66,8 @@ if ($RunScc) {
         } | ForEach-Object { $_.SelectSingleNode('benchmarkID').InnerText } | Select-Object -Unique)
     if ($wanted.Count -eq 0) { throw 'None of the benchmarks installed in SCC are in the PowerSCAP cache.' }
 
+    $schemas = New-Object Xml.Schema.XmlSchemaSet
+    [void]$schemas.Add($null, (Join-Path $sccHome 'Resources\Schemas\options.xsd'))
     $crashed = @()
     foreach ($id in $wanted) {
         foreach ($c in $contents) {
@@ -70,7 +75,17 @@ if ($RunScc) {
             $c.SelectSingleNode('enabled').InnerText = $(if ($b -and $b.InnerText -eq $id) { '1' } else { '0' })
         }
         $tmpOptions = Join-Path $runDir "scc-options-$id.xml"
-        $options.Save($tmpOptions)
+        $writer = New-Object IO.StreamWriter($tmpOptions, $false, (New-Object Text.UTF8Encoding($false)))
+        try { $options.Save($writer) } finally { $writer.Dispose() }
+        # SCC replaces an options file that fails its schema with defaults (no content enabled): check first.
+        $schemaErrors = New-Object 'System.Collections.Generic.List[string]'
+        $settings = New-Object Xml.XmlReaderSettings
+        $settings.ValidationType = 'Schema'
+        $settings.Schemas = $schemas
+        $settings.add_ValidationEventHandler({ param($s, $e) $schemaErrors.Add("line $($e.Exception.LineNumber): $($e.Message)") })
+        $reader = [Xml.XmlReader]::Create($tmpOptions, $settings)
+        try { while ($reader.Read()) { } } finally { $reader.Dispose() }
+        if ($schemaErrors.Count -gt 0) { throw "The options file written for SCC fails SCC's schema: $($schemaErrors[0])" }
         $sw = [Diagnostics.Stopwatch]::StartNew()
         & $SccPath -o $tmpOptions -u $sccRoot -q -dn
         $code = $LASTEXITCODE

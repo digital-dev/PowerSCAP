@@ -1,6 +1,8 @@
 Set-StrictMode -Version 2.0
 
 $script:EngineSourceRoot = Join-Path $PSScriptRoot 'Engine'
+# Set when this session runs an engine older than the sources (tools check it: & (Get-Module PowerSCAP) { $EngineStale }).
+$script:EngineStale = $false
 $script:EngineReferences = @(
     'System.Xml', 'System.Xml.Linq', 'System.Management',
     'System.DirectoryServices.AccountManagement', 'System.Security', 'System.Core',
@@ -38,6 +40,7 @@ function Import-PowerScapEngine {
     $loaded = 'PowerScap.Engine.EngineInfo' -as [type]
     if ($loaded) {
         if ([IO.Path]::GetFileName($loaded.Assembly.Location) -ne "PowerScap.Engine.$hash.dll") {
+            $script:EngineStale = $true
             Write-Warning 'PowerSCAP was updated after this PowerShell window loaded it. This window will keep running the old engine; open a new PowerShell window to use the new version.'
         }
         return
