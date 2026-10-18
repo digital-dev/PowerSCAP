@@ -55,11 +55,9 @@ if ($RunScc) {
     $options.PreserveWhitespace = $true
     $options.Load((Join-Path $sccHome 'options.xml'))
     # Every enable-able entry (OVAL-only content has no benchmarkID) is switched off except the benchmark being run.
+    # Nothing else changes: SCC resolves the relative content paths against its install folder and matches them to its
+    # content database, so a rewritten path makes it skip the content as "modified since last options file was saved".
     $contents = @($options.SelectNodes('//content') | Where-Object { $_.SelectSingleNode('enabled') })
-    foreach ($c in $contents) {
-        $fp = $c.SelectSingleNode('filepath')
-        if ($fp -and $fp.InnerText -and -not [IO.Path]::IsPathRooted($fp.InnerText)) { $fp.InnerText = Join-Path $sccHome $fp.InnerText }
-    }
     $wanted = @($contents | Where-Object { $_.SelectSingleNode('benchmarkID') } | Where-Object {
             $id = $_.SelectSingleNode('benchmarkID').InnerText
             $cached | Where-Object { $_.BenchmarkId -match ('_benchmark_' + [regex]::Escape($id) + '$') }
