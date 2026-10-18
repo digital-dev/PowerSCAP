@@ -16,7 +16,8 @@ with `tools\Compare-XccdfResults.ps1`.
 | **Total** | **502** | **500** | **2** |
 
 **Both remaining differences are machine changes between the two scans, not differences in evaluation.** With the
-collected values each tool saw, both tools give the same result (SV-253264, SV-253338 below).
+collected values each tool saw, both tools give the same result (SV-253264, SV-253338 below). A paired run (SCC and
+PowerSCAP back to back, on the same machine state) has not been made yet; SCC is not installed on the reference machine.
 
 History: the first elevated run matched 495 of 502. The fixes below brought it to 500. The SV-225232 filter change,
 made after the 15:15 run, is confirmed by the 22:03 run: pass, the same evaluation SCC shows (definition true,

@@ -15,9 +15,10 @@ There is nothing to install, no service, no telemetry, and it never changes the 
 Two rules drive the project:
 
 - **Results must match a validated scanner 1:1.** SCAP is black and white. Every difference from SCC is
-  investigated and written up in [docs/parity.md](docs/parity.md). On the reference machine, 500 of 502 rules
-  across seven benchmarks match SCC 5.15. The other two are machine changes between the scans (a log size and the
-  antivirus's running state), not differences in evaluation: given the same collected values, both tools agree.
+  investigated and written up in [docs/parity.md](docs/parity.md). On the reference machine, PowerSCAP evaluates
+  all 502 rules of seven benchmarks the way SCC 5.15 does. The comparison used an SCC scan from two days earlier,
+  and two settings changed on the machine in between (a log size and the antivirus's running state). Those two
+  rules report the machine as each tool found it; from the same collected values, both tools give the same result.
 - **Remove human error wherever possible.** PowerSCAP finds which benchmarks apply, downloads and verifies them,
   and puts the expected and collected values next to every finding. You don't have to interpret raw OVAL.
 
