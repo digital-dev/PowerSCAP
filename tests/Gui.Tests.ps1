@@ -168,6 +168,34 @@ Describe 'GUI window' -Tag Gui {
         [Windows.Application]::Current.Resources.MergedDictionaries[0]['ThemeName'] | Should Be 'Dark'
     }
 
+    It 'takes a click anywhere on a catalog Download button' -Skip:(-not $isSta) {
+        $c = New-Object PowerScap.Engine.Ncp.NcpChecklist
+        $c.Id = 953; $c.Name = 'Microsoft Office 365 ProPlus STIG'; $c.Version = 'Ver 3, Rel 8'
+        $r = New-Object PowerScap.Engine.Ncp.NcpResource
+        $r.Title = 'x'; $r.Location = 'https://example.test/x.zip'; $r.TypeName = 'SCAP 1.4 Content'
+        $vm.Content.Catalog.Add((New-Object PowerScap.Gui.CatalogItem -Property @{ Checklist = $c; Resource = $r }))
+        $vm.Page = 'Content'
+        Wait-Ui 1
+        function Find-Visual($node, [scriptblock]$Where) {
+            if (& $Where $node) { return $node }
+            for ($i = 0; $i -lt [Windows.Media.VisualTreeHelper]::GetChildrenCount($node); $i++) {
+                $hit = Find-Visual ([Windows.Media.VisualTreeHelper]::GetChild($node, $i)) $Where
+                if ($hit) { return $hit }
+            }
+        }
+        $button = Find-Visual $window { param($v) $v -is [Windows.Controls.Button] -and "$($v.Content)" -eq 'Download' }
+        $button | Should Not BeNullOrEmpty
+        $button.ActualHeight | Should Not BeLessThan 28
+        # InputHitTest is what a mouse click uses (it skips hidden pages; VisualTreeHelper.HitTest does not).
+        foreach ($fy in 0.1, 0.25, 0.5, 0.75, 0.9) {
+            $point = $button.TranslatePoint((New-Object Windows.Point(($button.ActualWidth / 2), ($button.ActualHeight * $fy))), $window)
+            $owner = $window.InputHitTest($point)
+            while ($owner -and $owner -ne $button) { $owner = [Windows.Media.VisualTreeHelper]::GetParent($owner) }
+            $owner | Should Be $button
+        }
+        $vm.Content.Catalog.Clear()
+    }
+
     It 'renders every page without binding errors' -Skip:(-not $isSta) {
         foreach ($p in 'System', 'Content', 'Scan', 'Results', 'Settings') {
             $vm.Page = $p

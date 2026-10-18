@@ -307,11 +307,13 @@
                                 <DataGridTemplateColumn Width="150">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
+                                            <!-- One or the other: an empty status line laid over the button would swallow clicks. -->
                                             <Grid>
-                                                <Button Content="Download" Padding="10,3" HorizontalAlignment="Left"
+                                                <Button Content="Download" Padding="16,6" MinWidth="108" HorizontalAlignment="Left" VerticalAlignment="Center"
                                                         Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"
                                                         Visibility="{Binding State, Converter={StaticResource EmptyToVisible}}"/>
-                                                <TextBlock Text="{Binding State}" Style="{StaticResource Dim}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding State}" Style="{StaticResource Dim}" VerticalAlignment="Center" IsHitTestVisible="False"
+                                                           Visibility="{Binding State, Converter={StaticResource PresentToVisible}}"/>
                                             </Grid>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
