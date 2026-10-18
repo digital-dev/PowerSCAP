@@ -1,0 +1,65 @@
+name: Result differs from SCC
+description: A rule where PowerSCAP and SCC (or another validated SCAP scanner) disagree
+labels: [parity]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        PowerSCAP aims to match a validated scanner rule for rule, so these reports matter most. For a clean comparison, run both tools elevated, with **the same content version, on the same machine state**. Redact host names, addresses and account names you can't share.
+
+  - type: input
+    id: benchmark
+    attributes:
+      label: Benchmark and content version
+      placeholder: "U_MS_Windows_11_V2R10_STIG_SCAP_1-4_Benchmark-enhancedV18"
+    validations:
+      required: true
+
+  - type: input
+    id: rule
+    attributes:
+      label: Rule
+      placeholder: "SV-253338 / WN11-AU-000505"
+    validations:
+      required: true
+
+  - type: input
+    id: results
+    attributes:
+      label: Results
+      placeholder: "SCC 5.15: pass, PowerSCAP: fail"
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Finding details from both tools
+      description: This rule's section of PowerSCAP's All-Settings report and of SCC's. The collected values usually show the cause.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: state
+    attributes:
+      label: How the runs compare
+      description: When each tool ran, whether both were elevated, and anything that changed on the machine in between (policy, updates, antivirus).
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows edition and build
+      placeholder: "Windows 11 Pro 25H2 (26200)"
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: PowerSCAP commit
+      description: "Output of: git rev-parse --short HEAD"
+    validations:
+      required: true

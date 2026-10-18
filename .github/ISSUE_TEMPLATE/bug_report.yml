@@ -1,0 +1,73 @@
+name: Bug report
+description: Something in PowerSCAP isn't working (a scan, a report, the app, content download)
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. If a rule's result differs from SCC, use the **Result differs from SCC** template instead. Redact host names, addresses and account names you can't share.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Scan / rule evaluation
+        - HTML report, checklist (.cklb) or XML output
+        - Desktop app
+        - Content download, cache or signature check
+        - Install / module import
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened?
+      description: Exact error text if there was one. For errors in the app, include the matching lines from %LOCALAPPDATA%\PowerSCAP\gui.log.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The commands you ran or what you clicked, and the benchmark.
+    validations:
+      required: false
+
+  - type: input
+    id: commit
+    attributes:
+      label: PowerSCAP commit
+      description: "Output of: git rev-parse --short HEAD"
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows edition and build
+      placeholder: "Windows 11 Pro 25H2 (26200)"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I'm on the latest commit of main
+          required: true
+        - label: I opened a new PowerShell window after updating (an old window keeps running the old engine)
+          required: true
+        - label: This isn't a security vulnerability (if it is, use [private reporting](../../security/advisories/new) instead)
+          required: true

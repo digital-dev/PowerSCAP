@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # The engine and tests target Windows PowerShell 5.1 and .NET Framework, so this runs on Windows with
+    # `shell: powershell` (not pwsh). build\Invoke-Tests.ps1 loads the in-box Pester 3.4.
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show versions
+        shell: powershell
+        run: |
+          $PSVersionTable | Format-Table -AutoSize
+          Get-Module Pester -ListAvailable | Select-Object Name, Version, ModuleBase | Format-Table -AutoSize
+
+      - name: Compile the engine and the app
+        shell: powershell
+        run: |
+          $m = Import-Module .\src\PowerSCAP -Force -PassThru -ErrorAction Stop
+          & $m { Import-PowerScapGui }
+          "Engine $([PowerScap.Engine.EngineInfo]::Version) compiled"
+
+      - name: Run tests
+        shell: powershell
+        # Admin: needs specific elevated machine state. Slow: whole-drive and Windows Update searches.
+        # Online: talks to NIST NCP. Content: needs SCAP content that is not stored in the repository.
+        run: |
+          powershell -NoProfile -STA -File build\Invoke-Tests.ps1 -ExcludeTag Admin,Slow,Online,Content
+          if ($LASTEXITCODE -ne 0) { throw "$LASTEXITCODE test(s) failed" }

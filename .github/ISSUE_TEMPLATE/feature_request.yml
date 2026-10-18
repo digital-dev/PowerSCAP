@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest a feature, an output format, or support for an OVAL object type or embedded command
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check [CODEBASE_MAP.md](../../blob/main/CODEBASE_MAP.md) for what is already built. Remediation is out of scope: PowerSCAP is read-only by design.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of request is this?
+      options:
+        - Unsupported OVAL object type or embedded command (rules report "not collected")
+        - Report, checklist or output format
+        - Desktop app
+        - Content handling (NCP, cache, updates)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: benchmark
+    attributes:
+      label: Benchmark (if applicable)
+      placeholder: "The benchmark and the rule IDs affected"
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What do you want, and why?
+    validations:
+      required: true
