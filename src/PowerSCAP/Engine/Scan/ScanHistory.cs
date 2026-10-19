@@ -116,6 +116,15 @@ namespace PowerScap.Engine.Scan
             return list.OrderByDescending(e => e.Start).ToList();
         }
 
+        /// <summary>Rewrites a saved run (its review layers changed after answers were given).</summary>
+        public void Update(string reportPath, BenchmarkReport report)
+        {
+            if (string.IsNullOrEmpty(reportPath) || !File.Exists(reportPath)) return;
+            string tmp = reportPath + ".tmp";
+            File.WriteAllText(tmp, Json().Serialize(report), Encoding.UTF8);
+            File.Replace(tmp, reportPath, null);
+        }
+
         public BenchmarkReport Load(string reportPath)
         {
             var r = Json().Deserialize<BenchmarkReport>(File.ReadAllText(reportPath, Encoding.UTF8));

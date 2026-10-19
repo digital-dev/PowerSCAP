@@ -24,7 +24,14 @@ Describe 'HtmlReport' {
     $non = [PowerScap.Engine.Reports.HtmlReport]::Render($report, $true)
 
     It 'All-Settings lists every rule' {
-        ([regex]::Matches($all, '<details class="rule"')).Count | Should Be 5
+        $scap = $all.Substring(0, $all.IndexOf('<section class="cat beyond">'))
+        ([regex]::Matches($scap, '<details class="rule"')).Count | Should Be 5
+    }
+
+    It 'lists manual rules again in a separate Beyond SCAP section' {
+        $beyond = $all.Substring($all.IndexOf('<section class="cat beyond">'))
+        ([regex]::Matches($beyond, '<details class="rule"')).Count | Should Be 1
+        $beyond | Should Match 'Not Reviewed'
     }
 
     It 'Non-Compliance lists only failing, error and unknown rules' {

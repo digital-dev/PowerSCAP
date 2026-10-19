@@ -111,12 +111,24 @@ namespace PowerScap.Engine.Reports
             d["createdAt"] = r.End.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
             d["updatedAt"] = d["createdAt"];
             d["STIGUuid"] = stigUuid;
-            d["status"] = Status(x.Result);
+            // The checklist combines the three layers: a manual rule carries its script check or answer, labelled with its source.
+            d["status"] = Status(x.EffectiveResult);
             d["overrides"] = new Dictionary<string, object>();
-            d["comments"] = "";
+            d["comments"] = x.IsManual && x.Review != null && x.Review.Source == RuleReview.Answer ? (x.Review.Comment ?? "") : "";
             d["finding_details"] = "Tool: PowerSCAP " + EngineInfo.Version + "\nTime: " + r.End.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture) +
-                "\nSource: " + x.Source + "\nResult: " + x.ResultText + "\n\n" + (x.Details ?? "").Replace("\r\n", "\n");
+                ReviewLines(x) + "\nSource: " + (x.Source ?? "SCAP") + "\nResult: " + x.ResultText + "\n\n" + (x.Details ?? "").Replace("\r\n", "\n");
             return d;
+        }
+
+        /// <summary>For a reviewed manual rule: who or what decided it, and the evidence, ahead of the SCAP details.</summary>
+        static string ReviewLines(RuleReport x)
+        {
+            if (!x.IsManual || x.Review == null) return "";
+            var v = x.Review;
+            string status = v.IsDecided ? RuleReview.StatusName(v.Status) : (v.NeedsReReview ? "Needs re-review (the rule changed since it was answered)" : "Not decided; evidence for the reviewer");
+            return "\nReview: " + v.Label + " - " + status +
+                (string.IsNullOrEmpty(v.Evidence) ? "" : "\nEvidence:\n" + v.Evidence.Replace("\r\n", "\n")) +
+                (v.Source == RuleReview.Answer && !string.IsNullOrEmpty(v.Comment) ? "\nComment: " + v.Comment : "");
         }
 
         /// <summary>XCCDF result → STIG Viewer status (as SCC maps them).</summary>

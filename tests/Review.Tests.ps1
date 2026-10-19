@@ -229,3 +229,76 @@ Describe 'Manual checks' {
         $f.DomainJoined | Should Be (Get-CimInstance Win32_ComputerSystem).PartOfDomain
     }
 }
+
+Describe 'Review layers in scans and outputs' {
+    $mini = Join-Path $PSScriptRoot 'fixtures\content\mini-ds.xml'
+    $root = Join-Path $env:TEMP ('powerscap-review-' + [guid]::NewGuid().ToString('N'))
+    function Scan {
+        $runner = [PowerScap.Engine.Scan.ScanRunner]::new($null)
+        $runner.AnswersRoot = Join-Path $root 'answers'
+        # Profile p3 holds the fixture's manual (OCIL) rules.
+        $request = New-Object PowerScap.Engine.Scan.ScanRequest -Property @{ ContentPath = $mini; ProfileId = 'xccdf_test_profile_p3'; OutputPath = (Join-Path $root 'out'); Formats = 'Html, Cklb' }
+        $runner.Run($request, $null, [Threading.CancellationToken]::None).Report
+    }
+
+    It 'applies a saved answer on the next scan, in the report, the checklist and completeness, but not in XCCDF' {
+        $first = Scan
+        $manual = $first.Rules | Where-Object IsManual | Select-Object -First 1
+        $manual | Should Not BeNullOrEmpty
+        $before = $first.Completeness
+        (New-Object PowerScap.Engine.Reports.AnswerStore((Join-Path $root 'answers'))).Save($first.Target.HostName, $first.BenchmarkId, $manual, 'Fail', 'Seen on the console.', 'WS01\reviewer') | Out-Null
+
+        Start-Sleep -Milliseconds 1100
+        $second = Scan
+        $rule = $second.Rules | Where-Object RuleId -eq $manual.RuleId
+        $rule.Result.ToString() | Should Be 'NotChecked'
+        $rule.EffectiveSource | Should Be 'Answered'
+        $second.Completeness | Should BeGreaterThan $before
+
+        $c = [PowerScap.Engine.Reports.CklbReader]::Read($second.Files['Checklist'])
+        $back = $c.Stigs[0].Rules | Where-Object RuleId -eq $manual.RuleId
+        [PowerScap.Engine.Reports.CklbWriter]::Status($back.Result) | Should Be 'open'
+        $back.Comments | Should Be 'Seen on the console.'
+        $back.Details | Should Match 'Review: Answered by WS01\\reviewer \d{4}-\d{2}-\d{2} - Open'
+
+        [xml]$x = Get-Content $second.Files['XCCDF'] -Raw
+        $ns = New-Object Xml.XmlNamespaceManager($x.NameTable); $ns.AddNamespace('x', 'http://checklists.nist.gov/xccdf/1.2')
+        $x.SelectSingleNode("//x:rule-result[@idref='$($manual.RuleId)']/x:result", $ns).InnerText | Should Be 'notchecked'
+
+        $html = Get-Content $second.Files['All-Settings'] -Raw
+        $html | Should Match 'Beyond SCAP'
+        $html | Should Match 'STIG completeness'
+        (Get-Content $second.Files['Non-Compliance'] -Raw) | Should Match 'Seen on the console\.'
+    }
+
+    It 'rewrites a run''s report and checklist after an answer changes' {
+        $report = Scan
+        $manual = $report.Rules | Where-Object IsManual | Select-Object -First 1
+        $manual.Review = New-Object PowerScap.Engine.Reports.RuleReview -Property @{ Status = 'NotApplicable'; Source = 'Answer'; Author = 'me'; When = (Get-Date); Comment = 'Not used here.' }
+        [PowerScap.Engine.Scan.ScanRunner]::RewriteReviewedOutputs($report)
+        $c = [PowerScap.Engine.Reports.CklbReader]::Read($report.Files['Checklist'])
+        [PowerScap.Engine.Reports.CklbWriter]::Status(($c.Stigs[0].Rules | Where-Object RuleId -eq $manual.RuleId).Result) | Should Be 'not_applicable'
+        (Get-Content $report.Files['All-Settings'] -Raw) | Should Match 'Not used here\.'
+    }
+
+    It 'skips the layers on request (SCAP results only)' {
+        $runner = [PowerScap.Engine.Scan.ScanRunner]::new($null)
+        $runner.ManualChecks = $false; $runner.AnswersRoot = $null
+        $request = New-Object PowerScap.Engine.Scan.ScanRequest -Property @{ ContentPath = $mini; ProfileId = 'xccdf_test_profile_p1'; OutputPath = (Join-Path $root 'plain'); Formats = 'Cklb' }
+        $report = $runner.Run($request, $null, [Threading.CancellationToken]::None).Report
+        @($report.Rules | Where-Object { $_.Review }).Count | Should Be 0
+    }
+
+    It 'keeps HTML well-formed when collected values hold characters XML cannot carry' {
+        $r = New-Object PowerScap.Engine.Reports.BenchmarkReport
+        $r.Target = New-Object PowerScap.Engine.Xccdf.TargetInfo -Property @{ HostName = 'WS01' }
+        $rule = New-Rule 'A-1' 'Fail'
+        $rule.Details = "value: a$([char]0)b$([char]7)c"
+        $r.Rules.Add($rule)
+        $html = [PowerScap.Engine.Reports.HtmlReport]::Render($r, $false)
+        { [xml]$html } | Should Not Throw
+        $html | Should Match 'value: a\?b\?c'
+    }
+
+    Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
+}

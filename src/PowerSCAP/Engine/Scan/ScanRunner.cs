@@ -62,10 +62,57 @@ namespace PowerScap.Engine.Scan
         public ScanRunner(CollectorRegistry collectors)
         {
             this.collectors = collectors ?? CollectorRegistry.CreateDefault();
+            ManualChecks = true;
+            AnswersRoot = AnswerStore.DefaultRoot();
+        }
+
+        /// <summary>
+        /// Layers 2 and 3 on the rules the content leaves manual: PowerSCAP's checks, then stored answers (a person's
+        /// answer replaces a script's verdict). SCAP results are never changed. A problem here is a warning, never a
+        /// failed scan.
+        /// </summary>
+        void ApplyReview(BenchmarkReport report, DateTime when)
+        {
+            if (ManualChecks && Review.ManualCheckLibrary.AppliesTo(report))
+            {
+                if (facts == null) facts = Review.ManualCheckFacts.Collect();
+                Review.ManualCheckLibrary.Apply(report, facts, when);
+            }
+            if (!string.IsNullOrEmpty(AnswersRoot))
+            {
+                try { new AnswerStore(AnswersRoot).Apply(report); }
+                catch (Exception e)
+                {
+                    if (e is OutOfMemoryException) throw;
+                    var w = Warning;
+                    if (w != null) w("Saved answers could not be read: " + e.Message);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Rewrites a scanned run's HTML reports and checklist after answers change (they show the review layers). The
+        /// XCCDF, OVAL and ARF results hold SCAP results only and are left as they are.
+        /// </summary>
+        public static void RewriteReviewedOutputs(BenchmarkReport report)
+        {
+            string f;
+            if (report.Files.TryGetValue("All-Settings", out f) && File.Exists(f)) HtmlReport.Write(report, f, false);
+            if (report.Files.TryGetValue("Non-Compliance", out f) && File.Exists(f)) HtmlReport.Write(report, f, true);
+            if (report.Files.TryGetValue("Checklist", out f) && File.Exists(f)) CklbWriter.Write(new[] { report }, f);
         }
 
         /// <summary>When set, each finished scan is also saved there for later browsing and comparison.</summary>
         public string HistoryRoot { get; set; }
+
+        /// <summary>Where answers to manual rules are kept; null skips them. Default: <see cref="AnswerStore.DefaultRoot"/>.</summary>
+        public string AnswersRoot { get; set; }
+
+        /// <summary>Run PowerSCAP's checks for manual rules (design layer 2). Default true.</summary>
+        public bool ManualChecks { get; set; }
+
+        // Facts for the manual checks are read once per runner: every benchmark of a batch sees the same machine.
+        Review.ManualCheckFacts facts;
 
         /// <summary>Messages about non-fatal problems (a history save that failed).</summary>
         public event Action<string> Warning;
@@ -106,6 +153,7 @@ namespace PowerScap.Engine.Scan
 
             var report = BenchmarkReport.Build(content, profile, results, scores, target, start, end);
             report.Signature = signature.ToString();
+            ApplyReview(report, end);
             report.Files["XCCDF"] = xccdf;
             var f = request.Formats;
             if ((f & OutputFormats.Html) != 0)

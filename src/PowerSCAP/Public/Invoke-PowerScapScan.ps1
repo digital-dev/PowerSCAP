@@ -19,6 +19,9 @@ function Invoke-PowerScapScan {
         Outputs besides the XCCDF results (always written): Html (All-Settings and Non-Compliance reports),
         Cklb (STIG Viewer checklist), Oval (OVAL results), Arf (Asset Reporting Format), or All.
         Default: Html, Cklb. Scanning several benchmarks in one call also writes a summary page.
+    .PARAMETER NoReview
+        Leaves out the layers beyond SCAP: PowerSCAP's checks for manual rules and saved answers. Reports and the
+        checklist then show the SCAP results only. XCCDF, OVAL and ARF results are SCAP-only either way.
     .PARAMETER NoHistory
         Does not add the scan to the scan history the GUI shows (%ProgramData%\PowerSCAP\history).
     .PARAMETER AllowUnelevated
@@ -41,6 +44,7 @@ function Invoke-PowerScapScan {
         [PowerScap.Engine.Oval.CollectorRegistry]$Collectors,
         [ValidateSet('Html', 'Cklb', 'Oval', 'Arf', 'All')][string[]]$Formats = @('Html', 'Cklb'),
         [switch]$NoHistory,
+        [switch]$NoReview,
         [switch]$AllowUnelevated
     )
 
@@ -56,6 +60,7 @@ function Invoke-PowerScapScan {
         # One collector set per call: each folder and registry key is read once, however many benchmarks need it.
         $runner = [PowerScap.Engine.Scan.ScanRunner]::new($Collectors)
         if (-not $NoHistory) { $runner.HistoryRoot = [PowerScap.Engine.Scan.ScanHistory]::DefaultRoot() }
+        if ($NoReview) { $runner.ManualChecks = $false; $runner.AnswersRoot = $null }
         $reports = New-Object 'System.Collections.Generic.List[PowerScap.Engine.Reports.BenchmarkReport]'
     }
 

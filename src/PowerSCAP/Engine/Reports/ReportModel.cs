@@ -106,6 +106,18 @@ namespace PowerScap.Engine.Reports
             get { return !NeedsReReview && (Status == XccdfResult.Pass || Status == XccdfResult.Fail || Status == XccdfResult.NotApplicable); }
         }
 
+        /// <summary>STIG Viewer's name for a status: Open, Not a Finding, Not Applicable, Not Reviewed.</summary>
+        public static string StatusName(XccdfResult r)
+        {
+            switch (r)
+            {
+                case XccdfResult.Pass: return "Not a Finding";
+                case XccdfResult.Fail: return "Open";
+                case XccdfResult.NotApplicable: return "Not Applicable";
+                default: return "Not Reviewed";
+            }
+        }
+
         /// <summary>"PowerSCAP automated" or "Answered by DOMAIN\user 2026-10-18".</summary>
         public string Label
         {
