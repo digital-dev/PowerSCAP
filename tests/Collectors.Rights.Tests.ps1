@@ -44,11 +44,36 @@ Describe 'Effective rights and share collectors' {
     }
 }
 
+Describe 'Windows Update search items (OVAL 5.12)' {
+    $ctx = New-DefaultContext -Objects $objects
+
+    It 'makes one item per update with its installed flag, severity and source' {
+        $u = New-Object PowerScap.Engine.Oval.WuaUpdate -Property @{ UpdateId = 'u1'; Title = 'KB1 cumulative'; IsInstalled = $false; MsrcSeverity = 'Critical' }
+        $v = New-Object PowerScap.Engine.Oval.WuaUpdate -Property @{ UpdateId = 'u2'; Title = 'KB2'; IsInstalled = $true }
+        $src = New-Object PowerScap.Engine.Oval.WuaSource -Property @{ Kind = 'Offline_Cab_File'; Path = 'C:\x\wsusscn2.cab'; DaysSinceModified = 40 }
+        $items = [PowerScap.Engine.Oval.WuaUpdateSearcherCollector]::Items('IsInstalled=0', [PowerScap.Engine.Oval.WuaUpdate[]]@($u, $v), $src, $ctx)
+        $items.Count | Should Be 2
+        $items[0].Get('update_id')[0].Value | Should Be 'u1'
+        $items[0].Get('is_installed')[0].Value | Should Be '0'
+        $items[0].Get('is_installed')[0].Datatype | Should Be 'boolean'
+        $items[0].Get('msrc_severity')[0].Value | Should Be 'Critical'
+        $items[0].Get('source')[0].Value | Should Be 'Offline_Cab_File'
+        $items[0].Get('days_since_source_modified')[0].Value | Should Be '40'
+        $items[1].Get('is_installed')[0].Value | Should Be '1'
+    }
+
+    It 'a search that finds nothing makes no items' {
+        $src = New-Object PowerScap.Engine.Oval.WuaSource -Property @{ Kind = 'Windows_Update' }
+        [PowerScap.Engine.Oval.WuaUpdateSearcherCollector]::Items('IsInstalled=0', [PowerScap.Engine.Oval.WuaUpdate[]]@(), $src, $ctx).Count | Should Be 0
+    }
+}
+
 Describe 'Windows Update search' -Tag Slow, Online {
     $ctx = New-DefaultContext -Objects $objects
 
-    It 'WUA search for installed updates returns update ids' {
+    It 'WUA search for installed updates returns one item per update' {
         $o = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx.FindObject('oval:t:obj:wua'), $ctx)
-        @($o.Items[0].Get('update_id')).Count | Should BeGreaterThan 0
+        $o.Items.Count | Should BeGreaterThan 0
+        $o.Items[0].Get('is_installed')[0].Value | Should Be '1'
     }
 }

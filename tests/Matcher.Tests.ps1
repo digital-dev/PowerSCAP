@@ -23,6 +23,29 @@ Describe 'BenchmarkMatcher' {
         $ids -join ',' | Should Be '356,432,483,686,807,986,1028'
     }
 
+    It 'matches every Windows benchmark of a checklist that carries several' {
+        $c = New-Object PowerScap.Engine.Ncp.NcpChecklist -Property @{ Id = 952; Name = 'Microsoft IIS 10.0 Server STIG' }
+        $c.Targets.Add('Microsoft IIS 10')
+        foreach ($f in 'U_MS_IIS_10-0_Site_V2R14_STIG_SCAP_1-4_Benchmark-enhancedV19-signed.zip', 'U_MS_IIS_10-0_Server_V3R6_STIG_SCAP_1-4_Benchmark-enhancedV18-signed.zip') {
+            $c.Resources.Add((New-Object PowerScap.Engine.Ncp.NcpResource -Property @{ Title = $f; Location = "https://example.test/$f"; TypeName = 'SCAP 1.4 Content' }))
+        }
+        $list = New-Object 'System.Collections.Generic.List[PowerScap.Engine.Ncp.NcpChecklist]'; $list.Add($c)
+        $m = @([PowerScap.Engine.Profile.BenchmarkMatcher]::Match((New-Profile 'Microsoft IIS 10'), $list))
+        ($m | ForEach-Object Name) -join ',' | Should Be 'Microsoft IIS 10.0 Server STIG - MS IIS 10-0 Server,Microsoft IIS 10.0 Server STIG - MS IIS 10-0 Site'
+    }
+
+    It 'matches OneDrive under its NCP target name' {
+        # NCP checklist 739 (the NIWC enhanced OneDrive benchmark) as NCP lists it.
+        $c = New-Object PowerScap.Engine.Ncp.NcpChecklist -Property @{ Id = 739; Name = 'Microsoft One Drive for Business 2016 STIG' }
+        $c.Targets.Add('Microsoft One Drive for Business 2016')
+        $f = 'U_MS_OneDrive_V2R4_STIG_SCAP_1-4_Benchmark-enhancedV12-signed.zip'
+        $c.Resources.Add((New-Object PowerScap.Engine.Ncp.NcpResource -Property @{ Title = $f; Location = "https://example.test/$f"; TypeName = 'SCAP 1.4 Content' }))
+        $list = New-Object 'System.Collections.Generic.List[PowerScap.Engine.Ncp.NcpChecklist]'; $list.Add($c)
+        $m = @([PowerScap.Engine.Profile.BenchmarkMatcher]::Match((New-Profile 'Microsoft Windows 11', 'Microsoft One Drive for Business 2016'), $list))
+        $m.Count | Should Be 1
+        $m[0].Name | Should Be 'Microsoft One Drive for Business 2016 STIG'
+    }
+
     It 'matches only what is installed' {
         $m = @([PowerScap.Engine.Profile.BenchmarkMatcher]::Match((New-Profile 'Google Chrome'), $catalog))
         $m.Count | Should Be 1
@@ -39,7 +62,8 @@ Describe 'BenchmarkMatcher' {
 
     It 'matches an operating system checklist on that operating system' {
         $ids = @([PowerScap.Engine.Profile.BenchmarkMatcher]::Match((New-Profile 'Microsoft Windows Server 2008', 'Microsoft Windows Defender'), $catalog) | ForEach-Object { $_.Checklist.Id } | Sort-Object)
-        $ids -join ',' | Should Be '228,807'
+        # Checklist 228 carries two benchmarks: domain controller and member server.
+        $ids -join ',' | Should Be '228,228,807'
     }
 
     It 'tells operating systems from components in real NCP target names' {

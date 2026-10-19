@@ -204,7 +204,8 @@
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Content="Check for updates" Command="{Binding CheckUpdatesCommand}" Margin="0,0,8,0"/>
-                        <Button Content="Import file..." Command="{Binding ImportCommand}"/>
+                        <Button Content="Import file..." Command="{Binding ImportCommand}"
+                                ToolTip="Add a SCAP zip or data stream. With SCC installed this opens its content folder, which holds NIWC's Windows Updates benchmark (not on NCP)."/>
                     </StackPanel>
                     <StackPanel>
                         <TextBlock Text="Content" Style="{StaticResource H1}"/>

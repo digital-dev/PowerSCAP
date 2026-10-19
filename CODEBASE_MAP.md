@@ -16,7 +16,8 @@ Start-PowerScapGui / Invoke-PowerScapScan          PowerShell: thin commands (sr
    Gui/*ViewModel  ----------------+               C#: WPF view-models over loose XAML (no code-behind)
         |                          |
    Scan/ScanRunner          Content side: Ncp/NcpClient -> Cache/ContentCache -> Content/SignatureVerifier
-        |                                 Profile/SystemProfile + BenchmarkMatcher, Cache/UpdateChecker
+        |                                 Profile/SystemProfile + BenchmarkMatcher, Cache/UpdateChecker,
+        |                                 Cache/SccContent (an installed SCC's bundled content, for import)
    Content/ScapContentLoader   (data stream -> XCCDF benchmark + OVAL/CPE/OCIL components)
         |
    Xccdf/ProfileResolver -> Xccdf/RuleEvaluator -> CpeApplicability

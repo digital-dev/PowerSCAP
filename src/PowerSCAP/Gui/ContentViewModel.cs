@@ -114,7 +114,15 @@ namespace PowerScap.Gui
         public NcpChecklist Checklist { get; set; }
         public NcpResource Resource { get; set; }
         public bool Detected { get; set; }
-        public string Name { get { return Checklist.Name; } }
+        /// <summary>The checklist's name, with the part this benchmark covers when the checklist has several.</summary>
+        public string Name
+        {
+            get
+            {
+                string part = NcpClient.PartName(Checklist, Resource);
+                return part == null ? Checklist.Name : Checklist.Name + " - " + part;
+            }
+        }
         public string Version { get { return Checklist.Version; } }
         public string ResourceType { get { return Resource.TypeName; } }
         public string Updated { get { return Checklist.LastModified == DateTime.MinValue ? "" : Checklist.LastModified.ToString("yyyy-MM-dd"); } }
@@ -225,7 +233,7 @@ namespace PowerScap.Gui
             var selected = new HashSet<string>(Items.Where(i => i.IsSelected).Select(i => i.Entry.Id));
             Items.Clear();
             var latest = entries
-                .GroupBy(e => e.ChecklistId.HasValue ? "c" + e.ChecklistId.Value : "b" + e.BenchmarkId)
+                .GroupBy(e => e.ChecklistId.HasValue ? "c" + e.ChecklistId.Value + "|" + (NcpClient.Series(e.FileName) ?? e.BenchmarkId) : "b" + e.BenchmarkId)
                 .Select(g => g.OrderByDescending(e => e.AddedUtc).First())
                 .OrderBy(e => e.ChecklistName ?? e.BenchmarkTitle, StringComparer.OrdinalIgnoreCase);
             foreach (var e in latest)
@@ -369,8 +377,9 @@ namespace PowerScap.Gui
                     var sp = p ?? SystemProfile.Collect();
                     list = BenchmarkMatcher.Match(sp, catalog).Select(m => m.Checklist);
                 }
-                return list.Select(c => new CatalogItem { Checklist = c, Resource = NcpClient.PickScapResource(c, flavor) })
-                    .Where(c => c.Resource != null).ToList();
+                // One row per benchmark: a checklist can hold several (IIS Server and Site).
+                return list.SelectMany(c => NcpClient.PickScapResources(c, flavor).Select(r => new CatalogItem { Checklist = c, Resource = r }))
+                    .GroupBy(c => c.Resource.Location).Select(g => g.First()).ToList();
             }, list =>
             {
                 IsSearching = false;
@@ -414,7 +423,7 @@ namespace PowerScap.Gui
         {
             var u = updates.FirstOrDefault(x => x.Cached != null && x.Cached.Id == item.Entry.Id);
             if (u == null || u.Checklist == null) return;
-            var resource = NcpClient.PickScapResource(u.Checklist, main.Settings.Flavor) ?? u.Latest;
+            var resource = NcpClient.PickScapResource(u.Checklist, main.Settings.Flavor, item.Entry.FileName) ?? u.Latest;
             item.UpdateText = "Downloading...";
             item.UpdateAvailable = false;
             var cache = main.OpenCache();
@@ -439,6 +448,9 @@ namespace PowerScap.Gui
                 Filter = "SCAP content (*.zip;*.xml)|*.zip;*.xml|All files (*.*)|*.*",
                 Multiselect = true
             };
+            // An installed SCC carries content NCP does not list (NIWC's Windows Updates benchmark): start there.
+            var scc = SccContent.Folders().FirstOrDefault();
+            if (scc != null) dlg.InitialDirectory = scc;
             if (dlg.ShowDialog() != true) return;
             var files = dlg.FileNames;
             var cache = main.OpenCache();

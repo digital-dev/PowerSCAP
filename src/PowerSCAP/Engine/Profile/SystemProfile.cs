@@ -91,6 +91,15 @@ namespace PowerScap.Engine.Profile
             });
             Try(() =>
             {
+                // The sync client installs per machine or per user; NCP files its STIG under the 2016 business name.
+                const string onedrive = @"SOFTWARE\Microsoft\OneDrive";
+                var machine = Value(RegistryHive.LocalMachine, onedrive, "Version") as string;
+                var user = Value(RegistryHive.CurrentUser, onedrive, "Version") as string;
+                if (!string.IsNullOrEmpty(machine) || !string.IsNullOrEmpty(user))
+                    p.Add("Microsoft OneDrive", machine ?? user, "Microsoft One Drive for Business 2016", (machine != null ? @"HKLM\" : @"HKCU\") + onedrive);
+            });
+            Try(() =>
+            {
                 const string ndp = @"SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full";
                 if (Value(RegistryHive.LocalMachine, ndp, "Release") != null)
                     p.Add(".NET Framework 4", Value(RegistryHive.LocalMachine, ndp, "Version") as string, "Microsoft .NET Framework 4.0", @"HKLM\" + ndp);

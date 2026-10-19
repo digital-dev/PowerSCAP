@@ -56,10 +56,26 @@ Describe 'UpdateChecker' {
 
     It 'checks only the newest entry per checklist and skips imports' {
         $http = New-Object PowerScapTests.FakeTransport; $http.Map('search/results', $fixture)
-        $old = New-Entry 1028 'old.zip'; $old.AddedUtc = [datetime]::UtcNow.AddDays(-30)
+        $old = New-Entry 1028 'U_MS_Windows_11_V2R9_STIG_SCAP_1-4_Benchmark-enhancedV17-signed.zip'; $old.AddedUtc = [datetime]::UtcNow.AddDays(-30)
         $r = @(Invoke-Check $http @($old, (New-Entry 1028 $win11), (New-Entry 0 'mine.zip' -Imported)))
         $r.Count | Should Be 1
         $r[0].State.ToString() | Should Be 'Current'
+    }
+
+    It 'follows each benchmark of a checklist that carries several (IIS Server and Site)' {
+        $res = @(
+            @{ checklistResourceId = 1; title = 'U_MS_IIS_10-0_Server_V3R6_STIG_SCAP_1-4_Benchmark-enhancedV18-signed.zip'; location = 'https://example.test/U_MS_IIS_10-0_Server_V3R6_STIG_SCAP_1-4_Benchmark-enhancedV18-signed.zip'; resourceTypeName = 'SCAP 1.4 Content' },
+            @{ checklistResourceId = 2; title = 'U_MS_IIS_10-0_Site_V2R14_STIG_SCAP_1-4_Benchmark-enhancedV19-signed.zip'; location = 'https://example.test/U_MS_IIS_10-0_Site_V2R14_STIG_SCAP_1-4_Benchmark-enhancedV19-signed.zip'; resourceTypeName = 'SCAP 1.4 Content' })
+        $grid = @{ response = @(@{ grid = @{ totalResults = 1; checklists = @(@{ checklistId = 952; name = 'Microsoft IIS 10.0 Server STIG'; version = '3'; targets = @('Microsoft IIS 10'); resources = $res }) } }) } | ConvertTo-Json -Depth 10
+        $http = New-Object PowerScapTests.FakeTransport; $http.Map('search/results', $grid)
+        $server = New-Entry 952 'U_MS_IIS_10-0_Server_V3R6_STIG_SCAP_1-4_Benchmark-enhancedV18-signed.zip'
+        $site = New-Entry 952 'U_MS_IIS_10-0_Site_V2R13_STIG_SCAP_1-4_Benchmark-enhancedV18-signed.zip'
+        $r = @(Invoke-Check $http @($server, $site))
+        $r.Count | Should Be 2
+        ($r | Where-Object { $_.Cached -eq $server }).State.ToString() | Should Be 'Current'
+        $u = $r | Where-Object { $_.Cached -eq $site }
+        $u.State.ToString() | Should Be 'UpdateAvailable'
+        $u.Latest.FileName | Should Be 'U_MS_IIS_10-0_Site_V2R14_STIG_SCAP_1-4_Benchmark-enhancedV19-signed.zip'
     }
 
     It 'does not touch the cache' {

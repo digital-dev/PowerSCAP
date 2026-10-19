@@ -214,7 +214,9 @@ namespace PowerScap.Engine.Content
 
         static void AddCatalog(XmlElement componentRef, XmlNamespaceManager ns, Func<string, XmlDocument> resolve, IDictionary<string, XmlDocument> target)
         {
-            foreach (XmlElement u in componentRef.SelectNodes("cat:catalog/cat:uri", ns))
+            // By local name: NIWC's OneDrive data stream writes some catalog entries without the catalog namespace
+            // (<uri> inside <cat:catalog>); SCC follows them, and they are the content's only link to its OVAL.
+            foreach (XmlElement u in componentRef.SelectNodes("cat:catalog/*[local-name()='uri']", ns))
             {
                 XmlDocument d = resolve(u.GetAttribute("uri"));
                 if (d != null) target[u.GetAttribute("name")] = d;

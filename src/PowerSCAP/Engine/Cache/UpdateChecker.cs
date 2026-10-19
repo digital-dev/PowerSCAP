@@ -33,8 +33,9 @@ namespace PowerScap.Engine.Cache
 
         public IList<UpdateInfo> Check(IList<CacheEntry> cached)
         {
+            // A checklist can hold several benchmarks (IIS Server and Site): each is followed on its own.
             var newest = cached.Where(e => !e.Imported && e.ChecklistId.HasValue)
-                .GroupBy(e => e.ChecklistId.Value)
+                .GroupBy(e => e.ChecklistId.Value + "|" + (NcpClient.Series(e.FileName) ?? e.BenchmarkId))
                 .Select(g => g.OrderByDescending(e => e.AddedUtc).First())
                 .ToList();
             var result = new List<UpdateInfo>();
@@ -55,7 +56,7 @@ namespace PowerScap.Engine.Cache
             {
                 var info = new UpdateInfo { Cached = e };
                 info.Checklist = catalog.FirstOrDefault(c => c.Id == e.ChecklistId.Value);
-                info.Latest = NcpClient.PickScapResource(info.Checklist);
+                info.Latest = NcpClient.PickScapResource(info.Checklist, null, e.FileName);
                 if (info.Checklist == null || info.Latest == null)
                 {
                     info.State = UpdateState.NotInCatalog;

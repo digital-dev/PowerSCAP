@@ -138,15 +138,62 @@ namespace PowerScap.Engine.Ncp
         /// <summary>As PickScapResource, trying the preferred resource type ("SCAP 1.3 Content") first.</summary>
         public static NcpResource PickScapResource(NcpChecklist c, string preferredType)
         {
-            if (c == null) return null;
+            return PickScapResources(c, preferredType).FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Every Windows benchmark of the checklist in the first resource type that has any. One checklist can carry
+        /// several (IIS Server and Site, SQL Server Instance and Database, Windows 2012 DC and MS); each is its own
+        /// content, scanned on its own.
+        /// </summary>
+        public static IList<NcpResource> PickScapResources(NcpChecklist c, string preferredType)
+        {
+            if (c == null) return new List<NcpResource>();
             var order = string.IsNullOrEmpty(preferredType) ? Preference : new[] { preferredType }.Concat(Preference);
             foreach (var type in order)
             {
-                var pick = c.Resources.FirstOrDefault(r => string.Equals(r.TypeName, type, StringComparison.OrdinalIgnoreCase) &&
-                    !string.IsNullOrEmpty(r.Location) && !NonWindows.IsMatch(r.Title ?? ""));
-                if (pick != null) return pick;
+                var picks = c.Resources.Where(r => string.Equals(r.TypeName, type, StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrEmpty(r.Location) && !NonWindows.IsMatch(r.Title ?? "")).ToList();
+                if (picks.Count > 0) return picks;
             }
-            return null;
+            return new List<NcpResource>();
+        }
+
+        /// <summary>
+        /// The resource of the checklist that continues a cached file's benchmark (same series, any release or SCAP
+        /// version), else the preferred one. Null when the checklist has no SCAP content.
+        /// </summary>
+        public static NcpResource PickScapResource(NcpChecklist c, string preferredType, string cachedFileName)
+        {
+            var picks = PickScapResources(c, preferredType);
+            string series = Series(cachedFileName);
+            return picks.FirstOrDefault(r => series != null && Series(r.FileName) == series) ?? picks.FirstOrDefault();
+        }
+
+        static readonly Regex Release = new Regex(@"_V\d+R\d+(?=_)", RegexOptions.IgnoreCase);
+        static readonly Regex ScapPart = new Regex(@"_SCAP_\d.*$", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// A benchmark file name without its release and SCAP packaging: U_MS_IIS_10-0_Site_V2R14_STIG_SCAP_1-4_Benchmark-
+        /// enhancedV19-signed.zip and U_MS_IIS_10-0_Site_V2R15_STIG_SCAP_1-3_Benchmark.zip are both u_ms_iis_10-0_site_stig.
+        /// </summary>
+        public static string Series(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName)) return null;
+            string s = System.IO.Path.GetFileNameWithoutExtension(fileName);
+            s = ScapPart.Replace(Release.Replace(s, ""), "");
+            return s.ToLowerInvariant();
+        }
+
+        /// <summary>The part of the checklist this resource holds when it has several ("IIS 10-0 Site"), else null.</summary>
+        public static string PartName(NcpChecklist c, NcpResource r)
+        {
+            if (c == null || r == null || string.IsNullOrEmpty(r.FileName) || PickScapResources(c, r.TypeName).Count < 2) return null;
+            string name = System.IO.Path.GetFileNameWithoutExtension(r.FileName);
+            name = ScapPart.Replace(Release.Replace(name, ""), "");
+            if (name.StartsWith("U_", StringComparison.Ordinal)) name = name.Substring(2);
+            if (name.EndsWith("_STIG", StringComparison.OrdinalIgnoreCase)) name = name.Substring(0, name.Length - 5);
+            return name.Replace('_', ' ');
         }
 
         static string Str(IDictionary<string, object> o, string key)

@@ -47,6 +47,22 @@ History: the first elevated run matched 495 of 502. The fixes below brought it t
 made after the 15:15 run, is confirmed by the 22:03 run: pass, the same evaluation SCC shows (definition true,
 no collected items once Windows' own paths are excluded).
 
+## Benchmarks SCC scanned that the paired run did not compare
+
+| Benchmark | SCC | PowerSCAP |
+|---|---|---|
+| Windows Updates 001.001 (bundled with SCC, not on NCP) | **error**: SCC's Perl downloader could not reach microsoft.com (the outbound firewall blocks it) and it found no offline `wsusscn2.cab` | **pass**: Windows Update, queried through its own API, reports no missing operating system updates |
+| Microsoft OneDrive 002.004.012 | applicability check only (OneDrive applies); SCC crashed before writing rule results | 12 rules: 11 open (the OneDrive and Internet zone Group Policy settings are not configured on this unmanaged machine), 1 pass (supported version) |
+
+Neither is a parity result. Two PowerSCAP fixes came out of them:
+
+- **Windows Updates was a false fail.** The content uses OVAL 5.12's `wuaupdatesearcher_item`: one item per update,
+  with `is_installed` and `days_since_source_modified`. PowerSCAP built the 5.11 item (one item holding every update
+  id), which a state on `is_installed` can only fail. It now builds 5.12 items, so a search that finds no missing
+  update collects nothing and the rule passes.
+- **OneDrive was all errors.** NIWC's data stream writes two of its catalog entries without the catalog namespace;
+  one of them is the content's only link to its OVAL. SCC follows them, and PowerSCAP now does too.
+
 ## Differences and verdicts
 
 | Rule | SCC | PowerSCAP | Verdict |

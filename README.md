@@ -32,6 +32,9 @@ Two rules drive the project:
   - Every file's XML signature is checked.
   - Content is kept in a versioned local cache that works offline.
   - It detects new releases and imports local zips.
+  - A checklist that holds several benchmarks (IIS Server and Site, SQL Server Instance and Database) offers each one.
+  - With SCC installed, it imports SCC's bundled content, including NIWC's Windows Updates benchmark, which NCP does
+    not list ([content outside NCP](#content-outside-ncp)).
 - **Beyond SCAP, never mixed with it:** the rules the content leaves to a person ([review layers](#review-layers)).
   - PowerSCAP's own native checks decide the ones a script can decide, following each STIG's check text.
   - The app asks you about the rest, using the content's own questions, and remembers your answers.
@@ -89,7 +92,7 @@ Get-PowerScapBenchmark -Latest | Invoke-PowerScapScan -OutputPath D:\PowerSCAP-R
 | `Get-PowerScapSystemProfile` | The OS and the STIG-relevant products installed on this machine |
 | `Find-PowerScapBenchmark [-Keyword] [-MatchSystem]` | Searches NIST NCP for checklists with Windows SCAP content |
 | `Save-PowerScapBenchmark` | Downloads a checklist into the cache. Older versions are kept |
-| `Import-PowerScapBenchmark -Path` | Adds a local SCAP zip or data stream to the cache |
+| `Import-PowerScapBenchmark -Path` or `-FromScc <pattern>` | Adds a local SCAP zip or data stream to the cache, or content from an installed SCC |
 | `Get-PowerScapBenchmark [-Latest]` | Lists cached content (offline) |
 | `Test-PowerScapBenchmarkUpdate` | Checks NCP for newer releases. It never changes the cache |
 | `Invoke-PowerScapScan` | Scans and writes results ([outputs](#outputs)) |
@@ -108,10 +111,24 @@ Get-PowerScapBenchmark -Latest | Invoke-PowerScapScan -OutputPath D:\PowerSCAP-R
 | Windows components | .NET Framework 4, Defender Antivirus, Defender Firewall |
 | Office | Microsoft 365 Apps for enterprise and Office Professional Plus 2019/2021/2024 (the Office 365 ProPlus STIG); Office 2013 |
 | Servers | IIS 10 and 8.5, SQL Server 2016 and 2022, Exchange 2019, Active Directory domain controllers, Apache 2.4 |
-| Other | Adobe Acrobat Reader and Acrobat Pro, McAfee VirusScan Enterprise 8.8 |
+| Other | OneDrive (NCP files its STIG as *Microsoft One Drive for Business 2016*), Adobe Acrobat Reader and Acrobat Pro, McAfee VirusScan Enterprise 8.8 |
 
 Detection is a convenience. Each benchmark's own platform checks decide whether it applies when it is scanned
 (see [How results are decided](#how-results-are-decided)).
+
+### Content outside NCP
+
+NCP lists every benchmark in NIWC's [SCAP content library](https://github.com/niwc-atlantic/scap-content-library),
+so it is PowerSCAP's only download source. One benchmark ships only inside SCC: NIWC's **Windows Updates**
+benchmark, which asks Windows Update (or WSUS) for missing operating system updates. With SCC installed:
+
+```powershell
+Import-PowerScapBenchmark -FromScc 'Windows_Updates*'
+```
+
+In the app, *Import file...* opens SCC's content folder. The check queries Windows Update through its own API, so
+it needs Windows Update or a WSUS server to be reachable. On an offline machine, put Microsoft's offline catalog at
+`%ProgramData%\PowerSCAP\wsusscn2.cab`. The benchmark then also fails when that catalog is older than 31 days.
 
 ## The desktop app
 

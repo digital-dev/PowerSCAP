@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -240,7 +241,34 @@ namespace PowerScap.Engine.Oval
         }
     }
 
-    /// <summary>windows-def wuaupdatesearcher_object → wuaupdatesearcher_item (Windows Update Agent COM API).</summary>
+    /// <summary>One update returned by a Windows Update Agent search.</summary>
+    public class WuaUpdate
+    {
+        public string UpdateId { get; set; }
+        public string Title { get; set; }
+        public string SupportUrl { get; set; }
+        public bool IsInstalled { get; set; }
+        public bool IsHidden { get; set; }
+        public string MsrcSeverity { get; set; }
+        public DateTime? LastDeploymentChangeTime { get; set; }
+    }
+
+    /// <summary>Where a Windows Update Agent search looked (OVAL 5.12 EntityItemWuaSourceType).</summary>
+    public class WuaSource
+    {
+        public const string WindowsUpdate = "Windows_Update", Wsus = "WSUS", OfflineCab = "Offline_Cab_File";
+        public string Kind { get; set; }
+        public string Path { get; set; }
+        /// <summary>Whole days since the offline cab was modified; 0 for Windows Update and WSUS (OVAL 5.12).</summary>
+        public int DaysSinceModified { get; set; }
+    }
+
+    /// <summary>
+    /// windows-def wuaupdatesearcher_object → wuaupdatesearcher_item (Windows Update Agent COM API), as OVAL 5.12
+    /// defines it: one item per update found, with its title, installed and hidden flags, MSRC severity and the search
+    /// source. A search that finds nothing collects no items (does not exist), so "no missing updates" passes a test
+    /// with check_existence any_exist.
+    /// </summary>
     public class WuaUpdateSearcherCollector : ICollector
     {
         public string ObjectType { get { return "wuaupdatesearcher_object"; } }
@@ -255,6 +283,7 @@ namespace PowerScap.Engine.Oval
             Type sessionType = Type.GetTypeFromProgID("Microsoft.Update.Session");
             object session = Activator.CreateInstance(sessionType);
             object searcher = Invoke(session, "CreateUpdateSearcher");
+            var source = new WuaSource { Kind = WuaSource.WindowsUpdate, Path = "https://update.microsoft.com" };
             string cab = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "PowerSCAP", "wsusscn2.cab");
             if (File.Exists(cab))
             {
@@ -262,7 +291,13 @@ namespace PowerScap.Engine.Oval
                 object service = Invoke(manager, "AddScanPackageService", "PowerSCAP Offline", cab, 1);
                 SetProp(searcher, "ServerSelection", 3);
                 SetProp(searcher, "ServiceID", GetProp(service, "ServiceID"));
+                source = new WuaSource { Kind = WuaSource.OfflineCab, Path = cab, DaysSinceModified = (int)Math.Floor((DateTime.UtcNow - File.GetLastWriteTimeUtc(cab)).TotalDays) };
                 r.Messages.Add("Searched offline catalog " + cab);
+            }
+            else
+            {
+                string wsus = WsusServer();
+                if (wsus != null) source = new WuaSource { Kind = WuaSource.Wsus, Path = wsus };
             }
             if (spec.Behavior("include_superseded_updates", "true") == "false") SetProp(searcher, "IncludePotentiallySupersededUpdates", false);
 
@@ -271,18 +306,67 @@ namespace PowerScap.Engine.Oval
                 object result = Invoke(searcher, "Search", criteria);
                 object updates = GetProp(result, "Updates");
                 int count = (int)GetProp(updates, "Count");
-                var item = new OvalItem(ctx.NextItemId(), "wuaupdatesearcher_item");
-                item.Add("search_criteria", criteria);
+                var found = new List<WuaUpdate>();
                 for (int i = 0; i < count; i++)
                 {
                     object update = updates.GetType().InvokeMember("Item", System.Reflection.BindingFlags.GetProperty, null, updates, new object[] { i });
                     object identity = GetProp(update, "Identity");
-                    item.Add("update_id", (string)GetProp(identity, "UpdateID"));
+                    object changed = GetProp(update, "LastDeploymentChangeTime");
+                    found.Add(new WuaUpdate
+                    {
+                        UpdateId = (string)GetProp(identity, "UpdateID"),
+                        Title = GetProp(update, "Title") as string,
+                        SupportUrl = GetProp(update, "SupportUrl") as string,
+                        IsInstalled = (bool)GetProp(update, "IsInstalled"),
+                        IsHidden = (bool)GetProp(update, "IsHidden"),
+                        MsrcSeverity = GetProp(update, "MsrcSeverity") as string,
+                        LastDeploymentChangeTime = changed is DateTime ? (DateTime?)changed : null
+                    });
                 }
-                if (count == 0) item.Entities.Add(OvalEntity.Missing("update_id"));
-                r.Items.Add(item);
+                r.Items.AddRange(Items(criteria, found, source, ctx));
             }
+            if (r.Items.Count == 0) r.Flag = CollectedFlag.DoesNotExist;
             return r;
+        }
+
+        /// <summary>The OVAL 5.12 items for one search: one per update.</summary>
+        public static IList<OvalItem> Items(string criteria, IList<WuaUpdate> updates, WuaSource source, OvalContext ctx)
+        {
+            var items = new List<OvalItem>();
+            foreach (var u in updates)
+            {
+                var item = new OvalItem(ctx.NextItemId(), "wuaupdatesearcher_item");
+                item.Add("search_criteria", criteria);
+                item.Add("update_id", u.UpdateId);
+                item.Add("title", u.Title ?? "");
+                item.Add("support_url", u.SupportUrl ?? "");
+                item.Add("is_installed", u.IsInstalled ? "1" : "0", "boolean");
+                item.Add("is_hidden", u.IsHidden ? "1" : "0", "boolean");
+                item.Add("msrc_severity", u.MsrcSeverity ?? "");
+                if (u.LastDeploymentChangeTime.HasValue)
+                    item.Add("last_deployment_change_time", u.LastDeploymentChangeTime.Value.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture));
+                item.Add("source", source.Kind);
+                item.Add("source_path", source.Path ?? "");
+                item.Add("days_since_source_modified", source.DaysSinceModified.ToString(CultureInfo.InvariantCulture), "int");
+                items.Add(item);
+            }
+            return items;
+        }
+
+        /// <summary>The WSUS server Group Policy points Windows Update at, or null.</summary>
+        static string WsusServer()
+        {
+            using (var key = Microsoft.Win32.RegistryKey.OpenBaseKey(Microsoft.Win32.RegistryHive.LocalMachine, Microsoft.Win32.RegistryView.Registry64)
+                .OpenSubKey(@"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate"))
+            {
+                if (key == null) return null;
+                using (var au = key.OpenSubKey("AU"))
+                {
+                    object use = au == null ? null : au.GetValue("UseWUServer");
+                    if (!(use is int) || (int)use != 1) return null;
+                }
+                return key.GetValue("WUServer") as string;
+            }
         }
 
         static object Invoke(object target, string method, params object[] args)

@@ -22,6 +22,12 @@ Describe 'SystemProfile' {
         $targets -contains 'Microsoft Edge' | Should Be $edge
     }
 
+    It 'detects OneDrive (per machine or per user) under the NCP checklist''s target name' {
+        $od = [bool]((Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\OneDrive' -ErrorAction SilentlyContinue).Version -or
+            (Get-ItemProperty 'HKCU:\SOFTWARE\Microsoft\OneDrive' -ErrorAction SilentlyContinue).Version)
+        $targets -contains 'Microsoft One Drive for Business 2016' | Should Be $od
+    }
+
     It 'detects .NET Framework 4' {
         $targets -contains 'Microsoft .NET Framework 4.0' | Should Be $true
     }

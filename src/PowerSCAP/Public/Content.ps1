@@ -70,21 +70,25 @@ function Save-PowerScapBenchmark {
             $checklist = $InputObject.Checklist; $resource = $InputObject.Resource
         }
         elseif ($InputObject -is [PowerScap.Engine.Ncp.NcpChecklist]) {
-            $checklist = $InputObject; $resource = [PowerScap.Engine.Ncp.NcpClient]::PickScapResource($InputObject)
+            # Every benchmark the checklist carries (IIS Server and Site, SQL Server Instance and Database).
+            $checklist = $InputObject; $resources = @([PowerScap.Engine.Ncp.NcpClient]::PickScapResources($InputObject, $null))
         }
         else { throw "Save-PowerScapBenchmark takes a checklist or match from Find-PowerScapBenchmark, not $($InputObject.GetType().Name)." }
+        if ($InputObject -is [PowerScap.Engine.Profile.BenchmarkMatch]) { $resources = @($resource) }
         # One unavailable benchmark must not stop the rest of the pipeline: report it and continue.
-        if (-not $resource) {
+        if (-not $resources -or -not $resources[0]) {
             $PSCmdlet.WriteError((New-Object Management.Automation.ErrorRecord(
                 (New-Object InvalidOperationException("$($checklist.Name) has no SCAP content for Windows.")), 'NoScapContent', 'ObjectNotFound', $checklist)))
             return
         }
-        Write-Verbose "Downloading $($resource.Location)"
-        try { $cache.Download($checklist, $resource) }
-        catch {
-            $inner = if ($_.Exception.InnerException) { $_.Exception.InnerException } else { $_.Exception }
-            $PSCmdlet.WriteError((New-Object Management.Automation.ErrorRecord(
-                (New-Object InvalidOperationException("Could not download $($checklist.Name): $($inner.Message)", $inner)), 'DownloadFailed', 'ConnectionError', $checklist)))
+        foreach ($resource in $resources) {
+            Write-Verbose "Downloading $($resource.Location)"
+            try { $cache.Download($checklist, $resource) }
+            catch {
+                $inner = if ($_.Exception.InnerException) { $_.Exception.InnerException } else { $_.Exception }
+                $PSCmdlet.WriteError((New-Object Management.Automation.ErrorRecord(
+                    (New-Object InvalidOperationException("Could not download $($checklist.Name) ($($resource.FileName)): $($inner.Message)", $inner)), 'DownloadFailed', 'ConnectionError', $checklist)))
+            }
         }
     }
 }
@@ -93,14 +97,26 @@ function Import-PowerScapBenchmark {
     <#
     .SYNOPSIS
         Adds a local SCAP zip or data stream file to the cache (offline content, or content not on NCP).
+    .PARAMETER FromScc
+        Imports from an installed SCAP Compliance Checker's content folder the files whose names match the pattern.
+        SCC carries NIWC's Windows Updates benchmark, which NCP does not list.
+    .EXAMPLE
+        Import-PowerScapBenchmark -FromScc 'Windows_Updates*'
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Path')]
     param(
-        [Parameter(Mandatory, ValueFromPipelineByPropertyName)][Alias('FullName')][string]$Path,
+        [Parameter(Mandatory, ParameterSetName = 'Path', ValueFromPipelineByPropertyName)][Alias('FullName')][string]$Path,
+        [Parameter(Mandatory, ParameterSetName = 'Scc')][string]$FromScc,
         [string]$CacheRoot
     )
     begin { $ErrorActionPreference = 'Stop'; $cache = Get-PowerScapCache $CacheRoot }
-    process { $cache.Import((Resolve-Path -LiteralPath $Path).ProviderPath) }
+    process {
+        if ($PSCmdlet.ParameterSetName -eq 'Path') { return $cache.Import((Resolve-Path -LiteralPath $Path).ProviderPath) }
+        $files = @([PowerScap.Engine.Cache.SccContent]::Files() | Where-Object { [IO.Path]::GetFileName($_) -like $FromScc })
+        if (-not [PowerScap.Engine.Cache.SccContent]::Folders().Count) { throw 'No SCAP Compliance Checker installation was found.' }
+        if (-not $files) { throw "No SCC content file matches '$FromScc'." }
+        foreach ($f in $files) { $cache.Import($f) }
+    }
 }
 
 function Get-PowerScapBenchmark {
@@ -108,7 +124,7 @@ function Get-PowerScapBenchmark {
     .SYNOPSIS
         Lists cached SCAP content. Works offline.
     .PARAMETER Latest
-        Only the newest cached version of each checklist (imported content: of each benchmark id).
+        Only the newest cached version of each benchmark (a checklist such as IIS 10.0 can hold two: Server and Site).
     #>
     [CmdletBinding()]
     param(
@@ -117,7 +133,7 @@ function Get-PowerScapBenchmark {
     )
     $entries = (Get-PowerScapCache $CacheRoot).List()
     if ($Latest) {
-        $entries | Group-Object { if ($_.ChecklistId) { "c$($_.ChecklistId)" } else { "b$($_.BenchmarkId)" } } |
+        $entries | Group-Object { if ($_.ChecklistId) { "c$($_.ChecklistId)|" + [PowerScap.Engine.Ncp.NcpClient]::Series($_.FileName) } else { "b$($_.BenchmarkId)" } } |
             ForEach-Object { $_.Group | Sort-Object AddedUtc -Descending | Select-Object -First 1 }
     }
     else { $entries }

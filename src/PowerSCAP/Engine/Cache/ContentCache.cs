@@ -108,10 +108,11 @@ namespace PowerScap.Engine.Cache
                 http.Download(resource.Location, temp);
                 string etag = null;
                 try { etag = http.Head(resource.Location).ETag; } catch (NcpException) { }
+                string part = NcpClient.PartName(checklist, resource);
                 var entry = new CacheEntry
                 {
                     ChecklistId = checklist.Id,
-                    ChecklistName = checklist.Name,
+                    ChecklistName = part == null ? checklist.Name : checklist.Name + " - " + part,
                     ChecklistVersion = checklist.Version,
                     NcpLastModified = checklist.LastModified == DateTime.MinValue ? (DateTime?)null : checklist.LastModified,
                     SourceUrl = resource.Location,

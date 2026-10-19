@@ -37,6 +37,28 @@ Describe 'NcpClient' {
         [PowerScap.Engine.Ncp.NcpClient]::PickScapResource(($list | Where-Object { $_.Id -eq 1028 })).FileName | Should Be 'U_MS_Windows_11_V2R10_STIG_SCAP_1-4_Benchmark-enhancedV18-signed.zip'
     }
 
+    It 'offers every Windows benchmark of a checklist that carries several, each named by its part' {
+        $site = 'U_MS_IIS_10-0_Site_V2R14_STIG_SCAP_1-4_Benchmark-enhancedV19-signed.zip'
+        $server = 'U_MS_IIS_10-0_Server_V3R6_STIG_SCAP_1-4_Benchmark-enhancedV18-signed.zip'
+        $http = New-Object PowerScapTests.FakeTransport
+        $http.Map('search/results', (New-Grid @(New-Checklist 952 'Microsoft IIS 10.0 Server STIG' -Resources @((New-Resource $server), (New-Resource $site), (New-Resource 'U_MS_IIS_10-0_Site_V2R15_STIG_SCAP_1-3_Benchmark.zip' 'SCAP 1.3 Content')))))
+        $c = (New-Object PowerScap.Engine.Ncp.NcpClient($http)).Search('', [int[]]@(29))[0]
+        $picks = @([PowerScap.Engine.Ncp.NcpClient]::PickScapResources($c, $null))
+        ($picks | ForEach-Object FileName) -join ',' | Should Be "$server,$site"
+        [PowerScap.Engine.Ncp.NcpClient]::PartName($c, $picks[1]) | Should Be 'MS IIS 10-0 Site'
+        # A cached release follows its own series, also across SCAP versions.
+        [PowerScap.Engine.Ncp.NcpClient]::PickScapResource($c, $null, 'U_MS_IIS_10-0_Site_V2R13_STIG_SCAP_1-4_Benchmark-enhancedV17-signed.zip').FileName | Should Be $site
+        [PowerScap.Engine.Ncp.NcpClient]::PickScapResource($c, 'SCAP 1.3 Content', $site).FileName | Should Be 'U_MS_IIS_10-0_Site_V2R15_STIG_SCAP_1-3_Benchmark.zip'
+        [PowerScap.Engine.Ncp.NcpClient]::Series($site) | Should Be 'u_ms_iis_10-0_site_stig'
+    }
+
+    It 'names no part for a checklist with one benchmark' {
+        $http = New-Object PowerScapTests.FakeTransport
+        $http.Map('search/results', (New-Grid @(New-Checklist 1 -Resources @(New-Resource 'U_MS_Edge_V2R5_STIG_SCAP_1-4_Benchmark-enhancedV16-signed.zip'))))
+        $c = (New-Object PowerScap.Engine.Ncp.NcpClient($http)).Search('', [int[]]@(29))[0]
+        [PowerScap.Engine.Ncp.NcpClient]::PartName($c, $c.Resources[0]) | Should Be $null
+    }
+
     It 'falls back to SCAP 1.3' {
         $http = New-Object PowerScapTests.FakeTransport
         $http.Map('search/results', (New-Grid @(New-Checklist 5 -Resources @((New-Resource 'a.zip' 'Standalone XCCDF 1.1.4'), (New-Resource 'b.zip' 'SCAP 1.3 Content')))))

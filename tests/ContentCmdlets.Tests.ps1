@@ -55,6 +55,21 @@ Describe 'Content cmdlets' {
         @(Get-PowerScapBenchmark -CacheRoot $cacheRoot -Latest).Count -ge 1 | Should Be $true
     }
 
+    It 'imports SCC''s Windows Updates benchmark from an installed SCC' -Skip:(-not [PowerScap.Engine.Cache.SccContent]::Folders().Count) {
+        $sccRoot = Join-Path ([IO.Path]::GetTempPath()) ('powerscap-scc-' + [guid]::NewGuid().ToString('N'))
+        try {
+            $e = Import-PowerScapBenchmark -FromScc 'Windows_Updates*' -CacheRoot $sccRoot
+            $e.BenchmarkId | Should Be 'xccdf_navy.navwar.niwcatlantic.scc_benchmark_Windows_Updates'
+            $e.Imported | Should Be $true
+            { Import-PowerScapBenchmark -FromScc 'no-such-content*' -CacheRoot $sccRoot } | Should Throw 'No SCC content file matches'
+        } finally { Remove-Item $sccRoot -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+
+    It 'orders SCC installations by version' {
+        [PowerScap.Engine.Cache.SccContent]::VersionOf('SCAP Compliance Checker 5.15') | Should Be ([version]'5.15')
+        [PowerScap.Engine.Cache.SccContent]::VersionOf('SCAP Compliance Checker') | Should Be ([version]'0.0')
+    }
+
     It 'scans a cached benchmark from the pipeline' {
         $entry = Get-PowerScapBenchmark -CacheRoot $cacheRoot | Where-Object { $_.Imported } | Select-Object -First 1
         $scan = $entry | Invoke-PowerScapScan -CacheRoot $cacheRoot -ProfileId 'xccdf_test_profile_p1' -OutputPath $out -PassThru -AllowUnelevated

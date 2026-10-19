@@ -11,7 +11,17 @@ namespace PowerScap.Engine.Profile
         public NcpResource Resource { get; set; }
         public DetectedProduct Product { get; set; }
 
-        public override string ToString() { return Checklist.Name + " (for " + Product.Name + ")"; }
+        /// <summary>The checklist's name, with the part this benchmark covers when the checklist has several.</summary>
+        public string Name
+        {
+            get
+            {
+                string part = NcpClient.PartName(Checklist, Resource);
+                return part == null ? Checklist.Name : Checklist.Name + " - " + part;
+            }
+        }
+
+        public override string ToString() { return Name + " (for " + Product.Name + ")"; }
     }
 
     /// <summary>
@@ -40,11 +50,10 @@ namespace PowerScap.Engine.Profile
             {
                 var product = ProductFor(profile, c.Targets);
                 if (product == null) continue;
-                var resource = NcpClient.PickScapResource(c);
-                if (resource == null) continue;
-                result.Add(new BenchmarkMatch { Checklist = c, Resource = resource, Product = product });
+                foreach (var resource in NcpClient.PickScapResources(c, null))
+                    result.Add(new BenchmarkMatch { Checklist = c, Resource = resource, Product = product });
             }
-            return result.OrderBy(m => m.Checklist.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            return result.OrderBy(m => m.Checklist.Name, StringComparer.OrdinalIgnoreCase).ThenBy(m => m.Resource.FileName, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
         /// <summary>The detected product a checklist with these NCP targets is for, or null.</summary>
