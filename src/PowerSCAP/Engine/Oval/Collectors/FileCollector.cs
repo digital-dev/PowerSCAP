@@ -26,6 +26,13 @@ namespace PowerScap.Engine.Oval
                 catch (Exception ex)
                 {
                     if (!(ex is UnauthorizedAccessException || ex is IOException || ex is System.Security.SecurityException)) throw;
+                    if (ex.HResult == CantAccessFile)
+                    {
+                        // A link whose target cannot be reached (broken reparse point, app execution alias): there is
+                        // no file content to collect. Skipped like a file that is not XML, and said so.
+                        result.Messages.Add("Skipped " + hit.FullPath + ": " + ex.Message);
+                        continue;
+                    }
                     var err = new OvalItem(ctx.NextItemId(), ItemType);
                     AddLocation(err, hit);
                     err.Status = ItemStatus.Error;
@@ -37,6 +44,9 @@ namespace PowerScap.Engine.Oval
             if (result.Items.Count == 0 && result.Flag == CollectedFlag.Complete) result.Flag = CollectedFlag.DoesNotExist;
             return result;
         }
+
+        /// <summary>ERROR_CANT_ACCESS_FILE (1920) as an HRESULT: "The file cannot be accessed by the system."</summary>
+        const int CantAccessFile = unchecked((int)0x80070780);
 
         protected abstract string ItemType { get; }
 

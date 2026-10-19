@@ -86,6 +86,17 @@ Describe 'File collectors' {
         Remove-Item $tree -Recurse -Force
     }
 
+    # An app execution alias is a reparse point the system cannot open (ERROR_CANT_ACCESS_FILE), like the file that
+    # failed the .NET STIG on GitHub's Windows Server 2022 runner.
+    $alias = @(Get-ChildItem (Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps') -Filter *.exe -ErrorAction SilentlyContinue | Select-Object -First 1)
+    It 'skips a file the system cannot access (a link to nothing), with a message, instead of failing the object' -Skip:(-not $alias) {
+        $o = '<ind:xmlfilecontent_object id="oval:t:obj:alias" version="1"><ind:filepath>' + (X $alias[0].FullName) + '</ind:filepath><ind:xpath>/configuration</ind:xpath></ind:xmlfilecontent_object>'
+        $ctx2 = New-DefaultContext -Objects $o
+        $r2 = [PowerScap.Engine.Oval.ObjectEvaluator]::Evaluate($ctx2.FindObject('oval:t:obj:alias'), $ctx2)
+        $r2.Flag.ToString() | Should Be 'DoesNotExist'
+        ($r2.Messages -join ' ') | Should Match 'cannot be accessed by the system'
+    }
+
     It 'xmlfilecontent with an XPath that selects nothing is a does-not-exist item (as SCC reports it)' {
         $o = '<ind:xmlfilecontent_object id="oval:t:obj:noxpath" version="1"><ind:filepath>' + $r + '\app.exe.config</ind:filepath><ind:xpath>/configuration/system.net/defaultProxy/@enabled</ind:xpath></ind:xmlfilecontent_object>'
         $ctx2 = New-DefaultContext -Objects $o

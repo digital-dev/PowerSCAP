@@ -95,7 +95,8 @@ foreach ($entry in $entries) {
         $doc.Load($f)
         foreach ($i in $doc.SelectNodes("//*[@status='error' and contains(local-name(), '_item')]")) {
             $m = @($i.ChildNodes | Where-Object { $_.LocalName -eq 'message' } | ForEach-Object { $_.InnerText })
-            "    item {0}: {1}" -f $i.LocalName, $(if ($m) { $m[0] } else { 'error' })
+            $where = @($i.ChildNodes | Where-Object { $_.LocalName -in 'filepath', 'key', 'path' } | ForEach-Object { $_.InnerText }) | Select-Object -First 1
+            "    item {0} {1}: {2}" -f $i.LocalName, $where, $(if ($m) { $m[0] } else { 'error' })
         }
     }) | Select-Object -Unique -First 10
     $errorLines = @($errorLines) + $itemErrors
