@@ -27,6 +27,11 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 Import-Module (Join-Path $repo 'src\PowerSCAP') -Force
 $problems = New-Object 'System.Collections.Generic.List[string]'
+# In GitHub Actions, results also go out as annotations: they show on the run page and in the API without a sign-in.
+$actions = $env:GITHUB_ACTIONS -eq 'true'
+function Write-Annotation([string]$Level, [string]$Title, [string]$Text) {
+    if ($actions) { Write-Host ('::{0} title={1}::{2}' -f $Level, $Title, ($Text -replace '%', '%25' -replace "`r?`n", '%0A')) }
+}
 $lines = New-Object 'System.Collections.Generic.List[string]'
 
 $machine = Get-PowerScapSystemProfile
@@ -71,15 +76,18 @@ foreach ($entry in $entries) {
     $files = @($scan.Files.Values | Where-Object { $_ -match '(XCCDF-Results|OVAL-Results(-\d+)?|ARF)\.xml$' })
     $invalid = @($files | & (Join-Path $PSScriptRoot 'Test-ScapSchema.ps1') | Where-Object { -not $_.Valid })
     foreach ($v in $invalid) { $problems.Add("$name : $(Split-Path $v.Path -Leaf) is not schema-valid: $(($v.Errors | Select-Object -First 3) -join ' | ')") }
-    "{0}: {1} rules in {2:0.0}s, score {3:0.##}, {4} error(s), {5} file(s) validated" -f $name, $rules.Count, $sw.Elapsed.TotalSeconds, $scan.Report.DefaultScore, $errors, $files.Count
+    $line = "{0}: {1} rules in {2:0.0}s, score {3:0.##}, {4} error(s), {5} file(s) validated" -f $name, $rules.Count, $sw.Elapsed.TotalSeconds, $scan.Report.DefaultScore, $errors, $files.Count
+    $line
     $lines.Add(('| {0} | {1} | {2} | {3} | {4} | {5} | {6} | {7:0.##}% | {8} |' -f $name, $rules.Count, (& $count 'pass'), (& $count 'fail'), $errors,
         (& $count 'notapplicable'), (& $count 'notchecked'), $scan.Report.DefaultScore, $(if ($invalid) { "**$($invalid.Count) invalid**" } else { "$($files.Count) valid" })))
 
     # Errors are listed so a run on a new platform shows what to look at.
-    foreach ($r in @($rules | Where-Object { $_.ResultText -eq 'error' } | Select-Object -First 15)) {
-        $why = (($r.Details -split "`n") | Where-Object { $_ -match 'Message|Error' } | Select-Object -First 1)
+    $errorLines = foreach ($r in @($rules | Where-Object { $_.ResultText -eq 'error' } | Select-Object -First 15)) {
+        $why = (($r.Details -split "`n") | Where-Object { $_ -match '^\s*(Message|Error Information)\s*:' } | Select-Object -First 1) -replace '^\s*[\w ]+?\s*:\s*', ''
         "    error {0}: {1}" -f $r.StigId, ("$why".Trim())
     }
+    $errorLines
+    Write-Annotation 'notice' $name (@($line) + @($errorLines) -join "`n")
     if ($rules.Count -gt 0 -and 100.0 * $errors / $rules.Count -gt $MaxErrorPercent) {
         $problems.Add(("{0} : {1} of {2} rules ended in error (more than {3}%)." -f $name, $errors, $rules.Count, $MaxErrorPercent))
     }
@@ -99,7 +107,7 @@ if ($SummaryPath) { Add-Content -LiteralPath $SummaryPath -Value $lines -Encodin
 if (-not $NoDownload) { Remove-Item -LiteralPath $CacheRoot -Recurse -Force -ErrorAction SilentlyContinue }
 
 if ($problems.Count) {
-    $problems | ForEach-Object { Write-Host "PROBLEM: $_" }
+    $problems | ForEach-Object { Write-Host "PROBLEM: $_"; Write-Annotation 'error' 'Smoke test' $_ }
     exit 1
 }
 'Smoke test passed.'
