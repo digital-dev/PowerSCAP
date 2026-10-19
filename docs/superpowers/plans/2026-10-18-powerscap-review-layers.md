@@ -1,5 +1,7 @@
 # PowerSCAP Review Layers (Plan 4) Implementation Plan
 
+**Status (2026-10-18): implemented.** Tasks 1-5 are in the code with tests (tests/Review.Tests.ps1, tests/Gui.Tests.ps1).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Layers 2 and 3 of the design (§6.4): native checks that decide manual rules a script can decide, and guided

@@ -32,6 +32,10 @@ Two rules drive the project:
   - Every file's XML signature is checked.
   - Content is kept in a versioned local cache that works offline.
   - It detects new releases and imports local zips.
+- **Beyond SCAP, never mixed with it:** the rules the content leaves to a person ([review layers](#review-layers)).
+  - PowerSCAP's own native checks decide the ones a script can decide, following each STIG's check text.
+  - The app asks you about the rest, using the content's own questions, and remembers your answers.
+  - A separate STIG completeness score. SCAP results and scores never change.
 - **Outputs:**
   - All-Settings and Non-Compliance HTML reports modeled on SCC's.
   - STIG Viewer 3 checklists (`.cklb`).
@@ -41,7 +45,7 @@ Two rules drive the project:
   - Dark, light or follow-Windows themes.
   - Background scans with progress and cancel.
   - A score tile per benchmark and a findings list you can filter.
-  - Rule detail with expected vs. collected values.
+  - Rule detail with expected vs. collected values, and an answer box for manual rules.
   - Scan history with "changed since previous scan".
   - A read-only checklist view for any `.cklb`, including SCC's and STIG Viewer's.
 - **Fast and stable:** all seven benchmarks for a typical Windows 11 workstation scan in about a minute and a half.
@@ -116,7 +120,7 @@ Detection is a convenience. Each benchmark's own platform checks decide whether 
 | **System** | The detected machine profile |
 | **Content** | Cached benchmarks with *Detected* and *Update available* badges and a profile per benchmark. Also NCP search, *Find for this system*, downloads and local import |
 | **Scan** | Benchmarks run one after another in the background, with per-benchmark progress and Cancel. A cancelled scan writes nothing |
-| **Results** | Score tiles, findings filtered by status, severity, source and text, *changed since previous scan*, rule detail, and buttons that open the HTML reports and the scan's checklist |
+| **Results** | Score tiles with STIG completeness, findings filtered by status, severity, source (SCAP, Script, Answered, Manual) and text, *changed since previous scan*, rule detail with the review panel for manual rules, *Evaluate anyway* for a benchmark that excludes this machine, and buttons that open the HTML reports and the scan's checklist |
 | **Checklists** | A read-only view of STIG Viewer checklists (`.cklb`): the most recent checklist of each STIG from your scans and results folder in one picker, plus any file you open (SCC's and STIG Viewer's too). Each STIG's rules with status, finding details and comments, filtered by status, severity and text. Edit checklists in STIG Viewer |
 | **Settings** | Theme, results and cache folders, update check at launch, preferred content (SCAP 1.4 or 1.3), outputs |
 
@@ -140,11 +144,12 @@ Scanning several benchmarks in one call also writes `<host>_<time>_Summary.html`
 |---|---|---|
 | `%ProgramData%\PowerSCAP\content` | Content cache and its `manifest.json` | `$env:POWERSCAP_CACHEDIR` |
 | `%ProgramData%\PowerSCAP\history` | Scan history the app shows (`-NoHistory` skips it) | `$env:POWERSCAP_HISTORYDIR` |
+| `%ProgramData%\PowerSCAP\answers` | Answers to manual rules, one file per machine | `$env:POWERSCAP_ANSWERSDIR` |
 | `%LOCALAPPDATA%\PowerSCAP\settings.json` | App settings | `$env:POWERSCAP_SETTINGS` |
 | `%LOCALAPPDATA%\PowerSCAP\bin` | Compiled engine and app | `$env:POWERSCAP_BINDIR` |
 
-The content cache and history are shared by everyone on the machine. Once an elevated session has created them,
-downloads and imports need an elevated session too; PowerSCAP says so and leaves the cache unchanged.
+The content cache, history and answers are shared by everyone on the machine. Once an elevated session has created
+them, changing them needs an elevated session too; PowerSCAP says so and changes nothing.
 
 ## How results are decided
 
@@ -156,7 +161,8 @@ PowerSCAP follows the standards, not its own judgment:
 
 Where a strict reading of the content contradicts what the STIG itself calls a finding, PowerSCAP reports what
 the STIG says and documents the decision in [docs/parity.md](docs/parity.md). Rules the content leaves manual
-stay *Not Reviewed*, as in any validated scanner.
+stay *Not Reviewed* in the SCAP results, as in any validated scanner; the [review layers](#review-layers) handle them
+separately.
 
 A benchmark decides for itself whether it applies to the machine (its CPE platform checks). When it does not,
 every rule is *Not Applicable*, as SCC reports it. For example, the Office 365 ProPlus STIG covers Microsoft 365 Apps
@@ -165,6 +171,41 @@ Applicable.
 
 When a check cannot be collected, its result is *error* and the message says why. For example, antivirus
 self-protection may deny reads of its own registry keys. PowerSCAP never works around such a block.
+
+## Review layers
+
+The SCAP content leaves some rules to a person (they are *notchecked*). PowerSCAP handles them in two layers that
+are always labelled and never change a SCAP result or score:
+
+1. **PowerSCAP checks (Script).** Native checks for manual rules a script can decide. Each follows its STIG check text
+   literally and decides only where that text states the outcome; otherwise it gathers evidence for the reviewer.
+
+   | STIG ID | Decides |
+   |---|---|
+   | WN11-00-000400 | Any Wi-Fi Direct adapter, hidden ones included: Open |
+   | WN11-00-000065 | An enabled local account (not built-in) without a logon in 35 days: Open |
+   | WN11-00-000085 | Not domain-joined: Not Applicable |
+   | WN11-00-000060 | Only system-created shares: Not Applicable (other shares: evidence for review) |
+   | WN11-00-000075 | Backup Operators empty: Not a Finding (members: evidence for review) |
+   | WN11-00-000035 | Neither AppLocker nor Windows Defender Application Control in use: Open |
+   | WN11-00-000080 | No hosted hypervisor installed: Not Applicable (installed: evidence for review) |
+   | WNFWA-000100 | A server or a workstation outside a domain: Not Applicable |
+   | EDGE-00-000004, -000039, -000042, -000064; DTBC-0065 | Optional allowlist not used: Not Applicable (configured: the list, for review) |
+   | WN11-00-000070 | Evidence only: the Administrators members |
+
+2. **Answers (Answered).** For the rest, the app's rule detail shows the content's own question (OCIL), what
+   PowerSCAP found, and *Not a Finding / Open / Not Applicable* with a comment. Answers are kept per machine,
+   benchmark and STIG ID and reused on later scans. An answer to a rule whose revision or check text has changed is
+   flagged for re-review instead of applied. A person's answer replaces a script's verdict (the evidence is kept).
+
+The HTML reports show these in a separate *Beyond SCAP* section with a STIG completeness tile; the checklist carries
+the reviewed status, its source and evidence, and the answer's comment. XCCDF, OVAL and ARF results stay SCAP-only.
+`Invoke-PowerScapScan -NoReview` leaves both layers out.
+
+**Evaluate anyway.** When a benchmark's platform checks rule the machine out (every rule Not Applicable, such as the
+Office 365 ProPlus STIG on Microsoft 365 Family), the Results page offers *Evaluate anyway (outside SCAP)*, and
+`Invoke-PowerScapScan -OutsideScap` does the same. It writes one page, `_Outside-SCAP.html`, showing which of the
+benchmark's settings are in place, clearly labelled as guidance and not a compliance result, and nothing else.
 
 ## Building and testing
 

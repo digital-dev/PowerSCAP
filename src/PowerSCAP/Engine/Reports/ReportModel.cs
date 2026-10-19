@@ -158,6 +158,18 @@ namespace PowerScap.Engine.Reports
         public List<RuleReport> Rules { get; set; }
         public string ContentFile { get; set; }
         public string Signature { get; set; }
+
+        /// <summary>
+        /// Evaluated with the content's platform checks ignored ("evaluate anyway"): not a SCAP result. Such a report is
+        /// written only as a labelled HTML page, never as XCCDF, checklist, history or score.
+        /// </summary>
+        public bool OutsideScap { get; set; }
+
+        /// <summary>The content's platform checks rule this machine out: every rule is Not Applicable.</summary>
+        public bool ExcludedByPlatform
+        {
+            get { return Rules.Count > 0 && Rules.All(x => x.Result == XccdfResult.NotApplicable); }
+        }
         /// <summary>Output files written for this benchmark, by kind (All-Settings, Checklist, ...).</summary>
         public Dictionary<string, string> Files { get; set; }
 

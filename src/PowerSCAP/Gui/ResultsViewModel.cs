@@ -153,6 +153,7 @@ namespace PowerScap.Gui
             RefreshCommand = new RelayCommand(Refresh, () => !IsLoading);
             ClearFiltersCommand = new RelayCommand(() => { StatusFilter = "All"; CatFilter = "All"; SourceFilter = "All"; SearchText = ""; ChangedOnly = false; });
             ShowStatusCommand = new RelayCommand(p => StatusFilter = Convert.ToString(p));
+            EvaluateAnywayCommand = new RelayCommand(EvaluateAnyway, () => IsExcludedByPlatform && !evaluating);
             SaveAnswerCommand = new RelayCommand(p => SaveAnswer(Convert.ToString(p)), p => selectedRow != null && selectedRow.IsManual && !saving);
             ClearAnswerCommand = new RelayCommand(ClearAnswer, () => selectedRow != null && selectedRow.IsAnswered && !saving);
         }
@@ -174,7 +175,60 @@ namespace PowerScap.Gui
         public string Message { get { return message; } private set { Set(ref message, value); } }
         public string Counts { get { return counts; } private set { Set(ref counts, value); } }
         public bool HasPrevious { get { return hasPrevious; } private set { Set(ref hasPrevious, value); } }
-        public BenchmarkReport Report { get { return report; } private set { if (Set(ref report, value)) Raise("ReportHeader"); } }
+        public BenchmarkReport Report
+        {
+            get { return report; }
+            private set
+            {
+                if (!Set(ref report, value)) return;
+                Raise("ReportHeader");
+                Raise("IsExcludedByPlatform");
+                OutsideMessage = null;
+            }
+        }
+
+        string outsideMessage;
+        bool evaluating;
+
+        /// <summary>The benchmark's own platform checks rule this machine out (every rule Not Applicable).</summary>
+        public bool IsExcludedByPlatform { get { return report != null && report.ExcludedByPlatform; } }
+        public string OutsideMessage { get { return outsideMessage; } private set { Set(ref outsideMessage, value); } }
+        public ICommand EvaluateAnywayCommand { get; private set; }
+
+        /// <summary>
+        /// Runs the benchmark's checks with its platform checks ignored and opens the labelled Outside-SCAP page. Not a
+        /// SCAP result: nothing goes into the checklist, scores or history.
+        /// </summary>
+        void EvaluateAnyway()
+        {
+            var rep = report;
+            if (rep == null || evaluating) return;
+            if (string.IsNullOrEmpty(rep.ContentFile) || !File.Exists(rep.ContentFile))
+            {
+                OutsideMessage = "The content this scan used is no longer on disk: " + rep.ContentFile;
+                return;
+            }
+            evaluating = true;
+            OutsideMessage = "Evaluating the benchmark's checks outside SCAP...";
+            var request = new ScanRequest { ContentPath = rep.ContentFile, ProfileId = rep.ProfileId, OutputPath = main.Settings.EffectiveOutputPath };
+            Background.Run(() => new ScanRunner(null).RunOutsideScap(request, null, System.Threading.CancellationToken.None), outside =>
+            {
+                evaluating = false;
+                int open = outside.Rules.Count(x => x.Result == XccdfResult.Fail), pass = outside.Rules.Count(x => x.Result == XccdfResult.Pass);
+                OutsideMessage = string.Format(CultureInfo.CurrentCulture,
+                    "Outside SCAP: {0} of {1} settings in place, {2} not. Opened {3} (guidance only, not a compliance result).",
+                    pass, outside.Rules.Count, open, Path.GetFileName(outside.Files["Outside-SCAP"]));
+                try { Shell.Open(outside.Files["Outside-SCAP"]); }
+                catch (Exception e)
+                {
+                    if (e is OutOfMemoryException) throw;
+                }
+            }, e =>
+            {
+                evaluating = false;
+                OutsideMessage = "Could not evaluate outside SCAP: " + Background.Describe(e);
+            });
+        }
 
         public string ReportHeader
         {

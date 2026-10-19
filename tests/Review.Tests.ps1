@@ -302,3 +302,45 @@ Describe 'Review layers in scans and outputs' {
 
     Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
 }
+
+Describe 'Evaluate anyway (outside SCAP)' {
+    $mini = Join-Path $PSScriptRoot 'fixtures\content\mini-ds.xml'
+    $root = Join-Path $env:TEMP ('powerscap-outside-' + [guid]::NewGuid().ToString('N'))
+    # Profile p2: rule r3's platform check is false, so SCAP reports it Not Applicable.
+    $request = New-Object PowerScap.Engine.Scan.ScanRequest -Property @{ ContentPath = $mini; ProfileId = 'xccdf_test_profile_p2'; OutputPath = $root }
+
+    It 'evaluates rules the platform checks exclude, and writes only a labelled page' {
+        $outside = [PowerScap.Engine.Scan.ScanRunner]::new($null).RunOutsideScap($request, $null, [Threading.CancellationToken]::None)
+        $outside.OutsideScap | Should Be $true
+        ($outside.Rules | Where-Object RuleId -eq 'xccdf_test_rule_r3').Result.ToString() | Should Not Be 'NotApplicable'
+        @(Get-ChildItem $root | ForEach-Object Name) -join ',' | Should Match '^[^,]+_Outside-SCAP\.html$'
+        $html = Get-Content $outside.Files['Outside-SCAP'] -Raw
+        $html | Should Match 'Not a SCAP result'
+        $html | Should Match 'Outside-SCAP evaluation'
+        { [xml]$html } | Should Not Throw
+    }
+
+    It 'leaves the SCAP scan of the same content unchanged' {
+        $scan = [PowerScap.Engine.Scan.ScanRunner]::new($null).Run($request, $null, [Threading.CancellationToken]::None).Report
+        ($scan.Rules | Where-Object RuleId -eq 'xccdf_test_rule_r3').Result.ToString() | Should Be 'NotApplicable'
+        $scan.OutsideScap | Should Be $false
+    }
+
+    It 'tells a benchmark that excludes the machine (every rule Not Applicable)' {
+        $r = New-Object PowerScap.Engine.Reports.BenchmarkReport
+        $r.Rules.Add((New-Rule 'A-1' 'NotApplicable')); $r.Rules.Add((New-Rule 'A-2' 'NotApplicable'))
+        $r.ExcludedByPlatform | Should Be $true
+        $r.Rules.Add((New-Rule 'A-3' 'Pass'))
+        $r.ExcludedByPlatform | Should Be $false
+    }
+
+    It 'is available from Invoke-PowerScapScan -OutsideScap' {
+        $out = Join-Path $root 'cmdlet'
+        $o = Invoke-PowerScapScan -ContentPath $mini -ProfileId 'xccdf_test_profile_p2' -OutputPath $out -OutsideScap -AllowUnelevated -NoHistory -PassThru
+        $o.Report.OutsideScap | Should Be $true
+        @(Get-ChildItem $out -Filter '*_XCCDF-Results.xml').Count | Should Be 0
+        @(Get-ChildItem $out -Filter '*_Outside-SCAP.html').Count | Should Be 1
+    }
+
+    Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
+}

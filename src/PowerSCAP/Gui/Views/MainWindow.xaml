@@ -444,7 +444,18 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
+                    <Border Grid.Row="2" Style="{StaticResource Banner}" Margin="0,0,0,10" Visibility="{Binding IsExcludedByPlatform, Converter={StaticResource BoolToVisible}}">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="Evaluate anyway (outside SCAP)" Command="{Binding EvaluateAnywayCommand}" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap" Text="This benchmark's own platform checks rule this machine out, so every rule is Not Applicable, as SCC reports it. You can still see which of its settings are in place: that report is guidance only, not a compliance result."/>
+                                <TextBlock Text="{Binding OutsideMessage}" Style="{StaticResource Dim}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                           Visibility="{Binding OutsideMessage, Converter={StaticResource PresentToVisible}}"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
                     <WrapPanel>
                         <StackPanel Margin="0,0,12,8">
                             <TextBlock Text="SCAN" Style="{StaticResource Caption}"/>

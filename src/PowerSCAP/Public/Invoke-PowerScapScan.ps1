@@ -22,6 +22,10 @@ function Invoke-PowerScapScan {
     .PARAMETER NoReview
         Leaves out the layers beyond SCAP: PowerSCAP's checks for manual rules and saved answers. Reports and the
         checklist then show the SCAP results only. XCCDF, OVAL and ARF results are SCAP-only either way.
+    .PARAMETER OutsideScap
+        For a benchmark whose platform checks rule this machine out (every rule Not Applicable): evaluates its checks
+        anyway and writes only <host>_<benchmark>_<time>_Outside-SCAP.html, labelled as guidance, not a SCAP result. No
+        XCCDF, checklist, history or summary is written.
     .PARAMETER NoHistory
         Does not add the scan to the scan history the GUI shows (%ProgramData%\PowerSCAP\history).
     .PARAMETER AllowUnelevated
@@ -45,6 +49,7 @@ function Invoke-PowerScapScan {
         [ValidateSet('Html', 'Cklb', 'Oval', 'Arf', 'All')][string[]]$Formats = @('Html', 'Cklb'),
         [switch]$NoHistory,
         [switch]$NoReview,
+        [switch]$OutsideScap,
         [switch]$AllowUnelevated
     )
 
@@ -69,6 +74,14 @@ function Invoke-PowerScapScan {
         $request = New-Object PowerScap.Engine.Scan.ScanRequest -Property @{
             ContentPath = $path; ProfileId = $ProfileId; OutputPath = $OutputPath
             Formats = $flags; AllowInvalidSignature = [bool]$AllowInvalidSignature
+        }
+        if ($OutsideScap) {
+            # Guidance only: one labelled HTML page; no SCAP results, checklist, history or summary.
+            try { $outside = $runner.RunOutsideScap($request, $null, [Threading.CancellationToken]::None) }
+            catch [PowerScap.Engine.Scan.ScanException] { throw $_.Exception.Message }
+            Write-Verbose "Outside-SCAP evaluation written to $($outside.Files['Outside-SCAP'])"
+            if ($PassThru) { [pscustomobject]@{ BenchmarkId = $outside.BenchmarkId; Report = $outside; Files = $outside.Files } }
+            return
         }
         $warnings = New-Object 'System.Collections.Generic.List[string]'
         $handler = [Action[string]] { param($m) $warnings.Add($m) }

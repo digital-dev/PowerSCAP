@@ -41,6 +41,17 @@ namespace PowerScap.Engine.Xccdf
         public static List<RuleResult> Evaluate(ScapContent content, ResolvedProfile profile, CollectorRegistry collectors, IProgress<ScanProgress> progress,
             System.Threading.CancellationToken cancel)
         {
+            return Evaluate(content, profile, collectors, progress, cancel, false);
+        }
+
+        /// <summary>
+        /// With <paramref name="ignorePlatforms"/>, rules are evaluated even where the content's CPE platform checks rule the
+        /// machine out. That is not a SCAP evaluation: its results are for the "evaluate anyway" report only, never for
+        /// SCAP results, scores or checklists.
+        /// </summary>
+        public static List<RuleResult> Evaluate(ScapContent content, ResolvedProfile profile, CollectorRegistry collectors, IProgress<ScanProgress> progress,
+            System.Threading.CancellationToken cancel, bool ignorePlatforms)
+        {
             collectors = collectors ?? CollectorRegistry.CreateDefault();
             var cpe = new CpeApplicability(content, collectors);
             var externalValues = CollectExports(profile);
@@ -52,7 +63,7 @@ namespace PowerScap.Engine.Xccdf
             {
                 cancel.ThrowIfCancellationRequested();
                 if (progress != null) progress.Report(new ScanProgress { Done = done, Total = total, CurrentRuleId = rule.RuleId });
-                results.AddRange(EvaluateRule(content, rule, cpe, collectors, externalValues, evaluators));
+                results.AddRange(EvaluateRule(content, rule, ignorePlatforms ? null : cpe, collectors, externalValues, evaluators));
                 done++;
             }
             if (progress != null) progress.Report(new ScanProgress { Done = done, Total = total, CurrentRuleId = null });
@@ -77,7 +88,7 @@ namespace PowerScap.Engine.Xccdf
             Dictionary<string, IList<string>> externalValues, Dictionary<string, OvalEvaluator> evaluators)
         {
             if (!rule.Selected) return new[] { Simple(rule, XccdfResult.NotSelected) };
-            if (!cpe.IsApplicable(rule)) return new[] { Simple(rule, XccdfResult.NotApplicable) };
+            if (cpe != null && !cpe.IsApplicable(rule)) return new[] { Simple(rule, XccdfResult.NotApplicable) };
             if (rule.Role == "unchecked") return new[] { Simple(rule, XccdfResult.NotChecked) };
 
             string ns = rule.RuleElement.NamespaceURI;

@@ -73,6 +73,8 @@ module warns when this happens. **After you change C#, test in a new PowerShell 
 | `Engine/Oval/Collectors/NativeShell.cs`, `NativeCmdlets.cs` | Native answers to commands embedded in content (see below) |
 | `Engine/Native/*.cs` | P/Invoke: LSA, Authz effective rights, NetApi, registry hives |
 | `Engine/Reports/FindingDetails.cs` | The SCC-style "expected vs. collected" text shown for each rule |
+| `Engine/Review/ManualChecks.cs`, `ManualCheckFacts.cs` | Layer 2: native checks for manual rules (by STIG ID) and the machine facts they read |
+| `Engine/Reports/AnswerStore.cs`, `OcilQuestions.cs` | Layer 3: stored answers per machine and STIG ID; the content's OCIL question for a manual rule |
 | `Gui/Views/MainWindow.xaml`, `Gui/Themes/*.xaml` | The whole UI. Colors are theme tokens used through `DynamicResource` |
 
 ## Rules a change must keep
@@ -110,6 +112,13 @@ or self-protection blocks: a denied read is an *error* result with its message.
 
 A collector that fails returns an `Error` item or flag with a message. One collector failure must never stop a
 scan. Access denied, missing privileges and timeouts are all results.
+
+### Review layers never touch SCAP
+
+A manual rule keeps its SCAP result (`notchecked`); a `RuleReview` beside it carries the PowerSCAP check or the
+answer, and `EffectiveResult` is what checklists and the app show. XCCDF, OVAL, ARF and the four scores use SCAP
+results only; STIG completeness is computed separately. A new manual check follows its STIG check text literally and
+decides only where that text states the outcome; anything needing judgement is evidence for the reviewer.
 
 ### Read-only
 

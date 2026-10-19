@@ -34,6 +34,7 @@ namespace PowerScap.Engine.Reports
 
             // Header
             sb.AppendLine("<header class=\"top\"><div class=\"wrap\">");
+            if (r.OutsideScap) kind = "Outside-SCAP evaluation";
             sb.Append("<div class=\"eyebrow\">PowerSCAP ").Append(E(EngineInfo.Version)).Append(" &#183; ").Append(E(kind)).AppendLine(" report</div>");
             sb.Append("<h1>").Append(E(r.StigName ?? r.Title)).AppendLine("</h1>");
             sb.Append("<div class=\"sub\">").Append(E(r.Title)).Append(" &#183; version ").Append(E(r.Version))
@@ -45,6 +46,10 @@ namespace PowerScap.Engine.Reports
             sb.AppendLine("</div></header>");
 
             sb.AppendLine("<main class=\"wrap\">");
+            if (r.OutsideScap)
+                sb.AppendLine("<p class=\"outside\"><b>Not a SCAP result.</b> This benchmark's own platform checks rule this machine out, so a SCAP " +
+                    "scan reports every rule Not Applicable (as SCC does). Here its checks were evaluated anyway, to show which of its settings " +
+                    "are in place. Use it as guidance only: it is not a compliance result, and it is not in any checklist, score or history.</p>");
             Tiles(sb, r);
             Info(sb, r);
 
@@ -265,7 +270,7 @@ h1{margin:4px 0 6px;font-size:24px}.sub{color:var(--muted)}.sub b{color:var(--te
 .tile .n{font-size:26px;font-weight:700}.tile .l{color:var(--muted);font-size:12px}.tile.score{border-top-color:var(--accent)}
 .tile.pass{border-top-color:var(--pass)}.tile.fail{border-top-color:var(--fail)}.tile.error{border-top-color:var(--warn)}.tile.notchecked{border-top-color:var(--info)}
 .tile.cats{border-top-color:var(--fail)}.tile.cats .n{font-size:18px}.tile.complete{border-top-color:var(--accent)}
-.beyond{border-top:2px dashed var(--line);padding-top:8px}.warn{color:var(--warn);font-weight:600}
+.beyond{border-top:2px dashed var(--line);padding-top:8px}.outside{border:1px solid var(--warn);border-radius:10px;padding:12px 16px;margin:20px 0 0;background:var(--panel)}.warn{color:var(--warn);font-weight:600}
 .info{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-bottom:20px}
 .info>div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}.info h3{margin:0 0 8px;font-size:14px;color:var(--accent)}
 dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;margin:0}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}

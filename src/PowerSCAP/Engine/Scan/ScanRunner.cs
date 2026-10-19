@@ -202,6 +202,35 @@ namespace PowerScap.Engine.Scan
             return new ScanOutcome { Report = report, Results = results, Signature = signature };
         }
 
+        /// <summary>
+        /// "Evaluate anyway": the benchmark's checks with its CPE platform checks ignored, for a machine they rule out
+        /// (Office 365 ProPlus STIG on Microsoft 365 Family, for example). Writes one labelled HTML page,
+        /// &lt;stem&gt;_Outside-SCAP.html, and nothing else: no XCCDF, checklist, history or answers.
+        /// </summary>
+        public BenchmarkReport RunOutsideScap(ScanRequest request, IProgress<ScanProgress> progress, CancellationToken cancel)
+        {
+            if (request == null) throw new ArgumentNullException("request");
+            string path = request.ContentPath;
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) throw new ScanException("Content file is missing from disk: " + path);
+            DateTime start = DateTime.Now;
+            var content = ScapContentLoader.Load(path);
+            string profileId = string.IsNullOrEmpty(request.ProfileId) ? FirstProfile(content) : request.ProfileId;
+            var profile = ProfileResolver.Resolve(content, profileId);
+            var results = RuleEvaluator.Evaluate(content, profile, collectors, progress, cancel, true);
+            var target = TargetInfo.Collect();
+            cancel.ThrowIfCancellationRequested();
+            var report = BenchmarkReport.Build(content, profile, results, Scoring.Compute(profile, results), target, start, DateTime.Now);
+            report.OutsideScap = true;
+            foreach (var r in report.Rules) r.Source = "Outside SCAP";
+            Directory.CreateDirectory(request.OutputPath);
+            string stem = Stem(request.OutputPath, target.HostName, content.BenchmarkId, start);
+            string file = stem + "_Outside-SCAP.html";
+            for (int n = 2; File.Exists(file); n++) file = stem + "_" + n + "_Outside-SCAP.html";
+            HtmlReport.Write(report, file, false);
+            report.Files["Outside-SCAP"] = file;
+            return report;
+        }
+
         /// <summary>The combined summary page for several benchmarks scanned together; null for fewer than two.</summary>
         public static string WriteSummary(IList<BenchmarkReport> reports, string outputPath)
         {
