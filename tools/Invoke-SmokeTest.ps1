@@ -83,9 +83,22 @@ foreach ($entry in $entries) {
 
     # Errors are listed so a run on a new platform shows what to look at.
     $errorLines = foreach ($r in @($rules | Where-Object { $_.ResultText -eq 'error' } | Select-Object -First 15)) {
-        $why = (($r.Details -split "`n") | Where-Object { $_ -match '^\s*(Message|Error Information)\s*:' } | Select-Object -First 1) -replace '^\s*[\w ]+?\s*:\s*', ''
+        # The first concrete reason: a message about a file or value that could not be read, else the first message.
+        $msgs = @(($r.Details -split "`n") | Where-Object { $_ -match '^\s*(Message|Error Information|Collected Item/State Result)?\s*:' } |
+            ForEach-Object { $_ -replace '^\s*[\w /]*?\s*:\s*', '' } | Where-Object { $_ -and $_ -notmatch '^Skipped unreadable directory|^\.\.\. \d+ more' })
+        $why = @($msgs | Where-Object { $_ -match 'denied|another process|could not|cannot|failed|not resolved|No collector' }) + $msgs | Select-Object -First 1
         "    error {0}: {1}" -f $r.StigId, ("$why".Trim())
     }
+    # Items that could not be collected (a file that cannot be read, a key that is denied), from the OVAL results.
+    $itemErrors = @(foreach ($f in @($files | Where-Object { $_ -match 'OVAL-Results' })) {
+        $doc = New-Object Xml.XmlDocument
+        $doc.Load($f)
+        foreach ($i in $doc.SelectNodes("//*[@status='error' and contains(local-name(), '_item')]")) {
+            $m = @($i.ChildNodes | Where-Object { $_.LocalName -eq 'message' } | ForEach-Object { $_.InnerText })
+            "    item {0}: {1}" -f $i.LocalName, $(if ($m) { $m[0] } else { 'error' })
+        }
+    }) | Select-Object -Unique -First 10
+    $errorLines = @($errorLines) + $itemErrors
     $errorLines
     Write-Annotation 'notice' $name (@($line) + @($errorLines) -join "`n")
     if ($rules.Count -gt 0 -and 100.0 * $errors / $rules.Count -gt $MaxErrorPercent) {
