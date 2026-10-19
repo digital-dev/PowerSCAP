@@ -3,6 +3,7 @@
 [![CI](https://github.com/digital-dev/PowerSCAP/actions/workflows/ci.yml/badge.svg)](https://github.com/digital-dev/PowerSCAP/actions/workflows/ci.yml)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 ![Windows PowerShell 5.1](https://img.shields.io/badge/Windows%20PowerShell-5.1-012456.svg)
+![PowerShell 7.4+](https://img.shields.io/badge/PowerShell-7.4%2B-012456.svg)
 
 **A free, open-source SCAP compliance scanner for Windows.** PowerSCAP is an alternative to DISA's SCAP
 Compliance Checker (SCC) that you can read end to end. It scans the local machine against DISA STIG benchmarks
@@ -62,9 +63,9 @@ Two rules drive the project:
 
 ## Quick start
 
-Requirements: Windows 10 or 11 with Windows PowerShell 5.1 (included in Windows). It is developed and tested on
-Windows 11. Windows Server should work but has not been tested.
-Scans need an elevated session.
+Requirements: Windows 10 or 11, or Windows Server, with Windows PowerShell 5.1 (included in Windows). PowerShell 7.4
+or later works too. It is developed on Windows 11; CI also runs the tests under PowerShell 7 and an end-to-end scan on
+Windows Server 2022 and 2025 ([Building and testing](#building-and-testing)). Scans need an elevated session.
 
 ```powershell
 git clone https://github.com/digital-dev/PowerSCAP.git
@@ -77,7 +78,7 @@ New-PowerScapShortcut            # desktop shortcut: opens the app as administra
 Or open the app from the elevated PowerShell window with `Start-PowerScapGui`.
 
 The first import compiles the engine. That takes a few seconds, and the result is cached in
-`%LOCALAPPDATA%\PowerSCAP\bin` until the source changes.
+`%LOCALAPPDATA%\PowerSCAP\bin` (PowerShell 7: `bin\pwsh`) until the source changes.
 
 ### From the command line
 
@@ -226,11 +227,12 @@ benchmark's settings are in place, clearly labelled as guidance and not a compli
 
 ## Building and testing
 
-There is no build step: the module compiles its C# on import. Tests use Pester 3.4, which ships with Windows,
-and always run under Windows PowerShell 5.1:
+There is no build step: the module compiles its C# on import. Tests use Pester 3.4, which ships with Windows, and
+run under Windows PowerShell 5.1, or under PowerShell 7 with `-Edition Core`:
 
 ```powershell
 powershell -NoProfile -File build\Invoke-Tests.ps1 -ExcludeTag Admin,Slow,Online,Content
+powershell -NoProfile -File build\Invoke-Tests.ps1 -Edition Core -ExcludeTag Admin,Slow,Online,Content
 ```
 
 | Tag | Needs |
@@ -240,7 +242,16 @@ powershell -NoProfile -File build\Invoke-Tests.ps1 -ExcludeTag Admin,Slow,Online
 | `Online` | Internet access |
 | `Content` | Real SCAP content (`tools\Get-TestContent.ps1` downloads it into the git-ignored `tests\content`) |
 
+CI runs both, and on Windows Server 2022 and 2025 an end-to-end smoke test (`tools\Invoke-SmokeTest.ps1`): it detects
+the machine, downloads the matching benchmarks from NCP, scans them elevated and validates every output file.
+
 Useful tools:
+
+- `tools\Test-ScapSchema.ps1` validates XCCDF results, OVAL results and ARF files against the official schemas
+  (XCCDF 1.2, OVAL 5.12.3, ARF 1.1; copies in `tests\fixtures\schemas`). The test suite does this for every scan it
+  writes.
+- `tools\Invoke-SmokeTest.ps1 -OutputPath <folder>` runs the CI smoke test on any machine, for example a Windows 10
+  VM (`-NoDownload` scans the existing cache instead).
 
 - `tools\Invoke-ParityRun.ps1 -RunScc` (elevated) runs SCC's command-line scanner one benchmark at a time, retrying
   when SCC crashes, then PowerSCAP on the same benchmark versions and profiles, and diffs every rule. SCC's options

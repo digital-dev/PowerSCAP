@@ -1,9 +1,11 @@
 # Shared test helpers. Dot-source after importing the module.
 
 $script:EngineAssembly = [PowerScap.Engine.EngineInfo].Assembly.Location
+# Test types compile against the engine and the assemblies it was built with (PowerShell 7 needs its .NET references).
+$script:TestReferences = @($script:EngineAssembly) + @(& (Get-Module PowerSCAP) { $script:EngineReferences })
 
 if (-not ('PowerScapTests.FakeCollector' -as [type])) {
-    Add-Type -ReferencedAssemblies $script:EngineAssembly, 'System.Xml' -TypeDefinition @'
+    Add-Type -ReferencedAssemblies $script:TestReferences -TypeDefinition @'
 using System;
 using System.Collections.Generic;
 using PowerScap.Engine.Oval;
@@ -36,7 +38,7 @@ namespace PowerScapTests
 }
 
 if (-not ('PowerScapTests.FakeTransport' -as [type])) {
-    Add-Type -ReferencedAssemblies $script:EngineAssembly -TypeDefinition @'
+    Add-Type -ReferencedAssemblies $script:TestReferences -TypeDefinition @'
 using System;
 using System.Collections.Generic;
 using System.IO;

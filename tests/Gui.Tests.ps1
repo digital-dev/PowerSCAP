@@ -8,7 +8,7 @@ $guiDir = Join-Path $repo 'src\PowerSCAP\Gui'
 $isSta = [Threading.Thread]::CurrentThread.GetApartmentState() -eq 'STA'
 
 if (-not ('PowerScapTests.BindingErrors' -as [type])) {
-    Add-Type -ReferencedAssemblies WindowsBase -TypeDefinition @'
+    Add-Type -ReferencedAssemblies (@($script:TestReferences) + ([Windows.DependencyObject].Assembly.Location)) -TypeDefinition @'
 using System.Collections.Generic;
 using System.Diagnostics;
 namespace PowerScapTests

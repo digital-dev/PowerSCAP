@@ -10,8 +10,10 @@ using PowerScap.Engine.Xccdf;
 namespace PowerScap.Engine.Reports
 {
     /// <summary>
-    /// OVAL 5.11 results documents (full results: definitions, tests with tested items, and the system
-    /// characteristics with collected objects and items), one per OVAL check component the scan used.
+    /// OVAL 5.12.3 results documents (full results: definitions, tests with tested items, and the system
+    /// characteristics with collected objects and items), one per OVAL check component the scan used. 5.12.3, as SCC
+    /// writes: it is a superset of 5.11.2 and the only version that defines some items the content uses
+    /// (shellcommand_item, the Windows Update item's installed flag).
     /// </summary>
     public static class OvalResultsWriter
     {
@@ -24,6 +26,44 @@ namespace PowerScap.Engine.Reports
         static readonly HashSet<string> IndependentItems = new HashSet<string>
         {
             "environmentvariable58_item", "family_item", "filehash58_item", "shellcommand_item", "textfilecontent_item", "variable_item", "xmlfilecontent_item"
+        };
+
+        /// <summary>
+        /// Each item type's entities in the order the OVAL 5.12.3 system characteristics schema requires
+        /// (generated from windows- and independent-system-characteristics-schema.xsd). Entities a type does not
+        /// define are left out of the document.
+        /// </summary>
+        static readonly Dictionary<string, string[]> EntityOrder = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            { "accesstoken_item", new[] { "security_principle", "seassignprimarytokenprivilege", "seauditprivilege", "sebackupprivilege", "sechangenotifyprivilege", "secreateglobalprivilege", "secreatepagefileprivilege", "secreatepermanentprivilege", "secreatesymboliclinkprivilege", "secreatetokenprivilege", "sedebugprivilege", "seenabledelegationprivilege", "seimpersonateprivilege", "seincreasebasepriorityprivilege", "seincreasequotaprivilege", "seincreaseworkingsetprivilege", "seloaddriverprivilege", "selockmemoryprivilege", "semachineaccountprivilege", "semanagevolumeprivilege", "seprofilesingleprocessprivilege", "serelabelprivilege", "seremoteshutdownprivilege", "serestoreprivilege", "sesecurityprivilege", "seshutdownprivilege", "sesyncagentprivilege", "sesystemenvironmentprivilege", "sesystemprofileprivilege", "sesystemtimeprivilege", "setakeownershipprivilege", "setcbprivilege", "setimezoneprivilege", "seundockprivilege", "seunsolicitedinputprivilege", "sebatchlogonright", "seinteractivelogonright", "senetworklogonright", "seremoteinteractivelogonright", "seservicelogonright", "sedenybatchLogonright", "sedenyinteractivelogonright", "sedenynetworklogonright", "sedenyremoteInteractivelogonright", "sedenyservicelogonright", "setrustedcredmanaccessnameright" } },
+            { "auditeventpolicysubcategories_item", new[] { "credential_validation", "kerberos_authentication_service", "kerberos_service_ticket_operations", "kerberos_ticket_events", "other_account_logon_events", "application_group_management", "computer_account_management", "distribution_group_management", "other_account_management_events", "security_group_management", "user_account_management", "dpapi_activity", "process_creation", "process_termination", "rpc_events", "directory_service_access", "directory_service_changes", "directory_service_replication", "detailed_directory_service_replication", "account_lockout", "ipsec_extended_mode", "ipsec_main_mode", "ipsec_quick_mode", "logoff", "logon", "network_policy_server", "other_logon_logoff_events", "special_logon", "logon_claims", "application_generated", "certification_services", "detailed_file_share", "file_share", "file_system", "filtering_platform_connection", "filtering_platform_packet_drop", "handle_manipulation", "kernel_object", "other_object_access_events", "registry", "sam", "removable_storage", "central_access_policy_staging", "audit_policy_change", "authentication_policy_change", "authorization_policy_change", "filtering_platform_policy_change", "mpssvc_rule_level_policy_change", "other_policy_change_events", "non_sensitive_privilege_use", "other_privilege_use_events", "sensitive_privilege_use", "ipsec_driver", "other_system_events", "security_state_change", "security_system_extension", "system_integrity", "group_membership", "pnp_activity", "user_device_claims", "audit_detailedtracking_tokenrightadjusted" } },
+            { "cmdlet_item", new[] { "module_name", "module_id", "module_version", "verb", "noun", "parameters", "select", "value" } },
+            { "environmentvariable58_item", new[] { "pid", "name", "value" } },
+            { "family_item", new[] { "family" } },
+            { "file_item", new[] { "filepath", "path", "filename", "owner", "size", "a_time", "c_time", "m_time", "ms_checksum", "version", "type", "attribute", "development_class", "company", "internal_name", "language", "original_filename", "product_name", "product_version", "windows_view" } },
+            { "fileeffectiverights_item", new[] { "filepath", "path", "filename", "trustee_sid", "trustee_name", "standard_delete", "standard_read_control", "standard_write_dac", "standard_write_owner", "standard_synchronize", "access_system_security", "generic_read", "generic_write", "generic_execute", "generic_all", "file_read_data", "file_write_data", "file_append_data", "file_read_ea", "file_write_ea", "file_execute", "file_delete_child", "file_read_attributes", "file_write_attributes", "windows_view" } },
+            { "filehash58_item", new[] { "filepath", "path", "filename", "hash_type", "hash", "windows_view" } },
+            { "group_item", new[] { "group", "user", "subgroup" } },
+            { "group_sid_item", new[] { "group_sid", "user_sid", "subgroup_sid", "group", "user", "subgroup" } },
+            { "lockoutpolicy_item", new[] { "force_logoff", "lockout_duration", "lockout_observation_window", "lockout_threshold" } },
+            { "ntuser_item", new[] { "key", "name", "sid", "username", "account_type", "logged_on", "days_since_last_logon", "user_has_signed_into_explorer", "enabled", "date_modified", "days_since_modified", "filepath", "last_write_time", "type", "value" } },
+            { "passwordpolicy_item", new[] { "max_passwd_age", "min_passwd_age", "min_passwd_len", "password_hist_len", "password_complexity", "reversible_encryption", "anonymous_name_lookup" } },
+            { "registry_item", new[] { "hive", "key", "name", "last_write_time", "type", "value", "expanded_value", "windows_view" } },
+            { "regkeyeffectiverights_item", new[] { "hive", "key", "trustee_sid", "trustee_name", "standard_delete", "standard_read_control", "standard_write_dac", "standard_write_owner", "standard_synchronize", "access_system_security", "generic_read", "generic_write", "generic_execute", "generic_all", "key_query_value", "key_set_value", "key_create_sub_key", "key_enumerate_sub_keys", "key_notify", "key_create_link", "key_wow64_64key", "key_wow64_32key", "key_wow64_res", "windows_view" } },
+            { "service_item", new[] { "service_name", "display_name", "description", "service_type", "start_type", "current_state", "controls_accepted", "start_name", "path", "pid", "service_flag", "dependencies" } },
+            { "sharedresource_item", new[] { "netname", "shared_type", "max_uses", "current_uses", "local_path", "access_read_permission", "access_write_permission", "access_create_permission", "access_exec_permission", "access_delete_permission", "access_atrib_permission", "access_perm_permission", "access_all_permission" } },
+            { "shellcommand_item", new[] { "shell", "command", "pattern", "exit_status", "stdout_line", "subexpression", "stderr_line" } },
+            { "sid_item", new[] { "trustee_name", "trustee_sid", "trustee_domain" } },
+            { "sid_sid_item", new[] { "trustee_sid", "trustee_name", "trustee_domain" } },
+            { "textfilecontent_item", new[] { "filepath", "path", "filename", "pattern", "instance", "line", "text", "subexpression", "windows_view" } },
+            { "user_item", new[] { "user", "enabled", "group", "last_logon", "full_name", "comment", "password_age_days", "lockout", "passwd_notreqd", "dont_expire_passwd", "encrypted_text_password_allowed", "not_delegated", "use_des_key_only", "dont_require_preauth", "password_expired", "smartcard_required", "trusted_for_delegation", "trusted_to_authenticate_for_delegation" } },
+            { "user_sid_item", new[] { "user_sid", "enabled", "group_sid", "last_logon", "user", "group", "full_name", "comment", "password_age_days" } },
+            { "userright_item", new[] { "userright", "trustee_name", "trustee_sid" } },
+            { "variable_item", new[] { "var_ref", "value" } },
+            { "wmi57_item", new[] { "namespace", "wql", "result" } },
+            { "wmi_item", new[] { "namespace", "wql", "result" } },
+            { "wuaupdatesearcher_item", new[] { "search_criteria", "update_id", "title", "support_url", "is_installed", "is_hidden", "msrc_severity", "last_deployment_change_time", "source", "source_path", "days_since_source_modified" } },
+            { "xmlfilecontent_item", new[] { "filepath", "path", "filename", "xpath", "value_of", "windows_view" } },
         };
 
         /// <summary>One results document per check component href.</summary>
@@ -181,7 +221,12 @@ namespace PowerScap.Engine.Reports
                 me.InnerText = Clean(m);
                 e.AppendChild(me);
             }
-            foreach (var ent in i.Entities)
+            string[] order;
+            IEnumerable<OvalEntity> entities = i.Entities;
+            if (EntityOrder.TryGetValue(i.ItemType, out order))
+                entities = i.Entities.Where(x => Array.IndexOf(order, x.Name) >= 0)
+                    .Select((x, n) => new { x, n }).OrderBy(t => Array.IndexOf(order, t.x.Name)).ThenBy(t => t.n).Select(t => t.x);
+            foreach (var ent in entities)
             {
                 var x = doc.CreateElement(e.Prefix, ent.Name, ns);
                 if (!string.IsNullOrEmpty(ent.Datatype) && ent.Datatype != "string") x.SetAttribute("datatype", ent.Datatype);
@@ -196,7 +241,8 @@ namespace PowerScap.Engine.Reports
                         else fe.InnerText = Clean(f.Value);
                         x.AppendChild(fe);
                     }
-                else if (ent.Status == ItemStatus.Exists) x.InnerText = Clean(ent.Value);
+                // An empty value stays an empty element: a text node would let the indented output add whitespace.
+                else if (ent.Status == ItemStatus.Exists && !string.IsNullOrEmpty(ent.Value)) x.InnerText = Clean(ent.Value);
                 e.AppendChild(x);
             }
             return e;
@@ -216,7 +262,7 @@ namespace PowerScap.Engine.Reports
             var g = doc.CreateElement("generator", ns);
             Text(doc, g, "product_name", CommonNs, "PowerSCAP").Prefix = "oval";
             Text(doc, g, "product_version", CommonNs, EngineInfo.Version).Prefix = "oval";
-            Text(doc, g, "schema_version", CommonNs, "5.11.2").Prefix = "oval";
+            Text(doc, g, "schema_version", CommonNs, "5.12.3").Prefix = "oval";
             Text(doc, g, "timestamp", CommonNs, when.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture)).Prefix = "oval";
             return g;
         }

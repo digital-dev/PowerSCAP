@@ -111,7 +111,10 @@ Describe 'Native PowerShell snippets match PowerShell' {
 
     It 'Get-Service renders the 5.1 table exactly' {
         $svc = Get-Service | Where-Object { $_.Name.Length -gt 18 } | Select-Object -First 1
-        $expected = @(Get-Service -Name $svc.Name | Out-String -Stream -Width 4096)
+        # Windows PowerShell 5.1's own table (PowerShell 7 formats tables differently).
+        $expected = if ($PSVersionTable.PSEdition -eq 'Core') {
+            @(powershell.exe -NoProfile -Command "Get-Service -Name '$($svc.Name)' | Out-String -Stream -Width 4096")
+        } else { @(Get-Service -Name $svc.Name | Out-String -Stream -Width 4096) }
         $o = Invoke-Native 'powershell' "Get-Service -name $($svc.Name)"
         ($o.Stdout -join '|') | Should Be ($expected -join '|')
     }

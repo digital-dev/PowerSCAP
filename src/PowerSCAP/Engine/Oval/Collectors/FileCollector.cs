@@ -110,7 +110,7 @@ namespace PowerScap.Engine.Oval
             if (hasVersion)
                 item.Add("version", string.Format(CultureInfo.InvariantCulture, "{0}.{1}.{2}.{3}", v.FileMajorPart, v.FileMinorPart, v.FileBuildPart, v.FilePrivatePart), "version");
             else
-                item.Entities.Add(OvalEntity.Missing("version"));
+                item.Entities.Add(OvalEntity.Missing("version", "version"));
             AddString(item, "company", v == null ? null : v.CompanyName);
             AddString(item, "internal_name", v == null ? null : v.InternalName);
             AddString(item, "language", v == null ? null : v.Language);
@@ -119,7 +119,7 @@ namespace PowerScap.Engine.Oval
             if (v != null && (v.ProductMajorPart | v.ProductMinorPart | v.ProductBuildPart | v.ProductPrivatePart) != 0)
                 item.Add("product_version", string.Format(CultureInfo.InvariantCulture, "{0}.{1}.{2}.{3}", v.ProductMajorPart, v.ProductMinorPart, v.ProductBuildPart, v.ProductPrivatePart), "version");
             else
-                item.Entities.Add(OvalEntity.Missing("product_version"));
+                item.Entities.Add(OvalEntity.Missing("product_version", "version"));
         }
 
         static void AddString(OvalItem item, string name, string value)

@@ -15,9 +15,10 @@ Pull requests are welcome. Useful contributions include:
    syntax will not compile. Keep C# string literals ASCII.
 4. Add or update tests. Engine changes get a small hand-written fixture with a known answer in
    `tests/fixtures`, or an inline one in the test.
-5. Run the suite under Windows PowerShell 5.1 before opening the PR:
+5. Run the suite under Windows PowerShell 5.1, and if you have it PowerShell 7, before opening the PR:
    ```powershell
    powershell -NoProfile -File build\Invoke-Tests.ps1 -ExcludeTag Admin,Slow,Online,Content
+   powershell -NoProfile -File build\Invoke-Tests.ps1 -Edition Core -ExcludeTag Admin,Slow,Online,Content
    ```
    If you can, also run it elevated and with `tools\Get-TestContent.ps1` content, without the exclusions.
 6. **Changing how a result is decided?** Passing the tests is not enough. Compare against SCC with

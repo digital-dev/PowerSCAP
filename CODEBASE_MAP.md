@@ -39,6 +39,10 @@ Start-PowerScapGui / Invoke-PowerScapScan          PowerShell: thin commands (sr
 named by a hash of the sources and cached in `%LOCALAPPDATA%\PowerSCAP\bin`. The app's view-models under `Gui/`
 compile the same way into a second DLL that references the engine.
 
+Under PowerShell 7 the same sources compile against .NET's reference assemblies (`$PSHOME\ref`) plus the Windows
+packages PowerShell ships, into `bin\pwsh`. .NET has no `System.Web.Extensions`, so `Compat\JavaScriptSerializer.cs`
+(compiled only there) stands in for the JSON serializer and writes the same JSON, so files are shared between editions.
+
 .NET cannot unload an assembly. A PowerShell window that loaded an older engine keeps running it, and the
 module warns when this happens. **After you change C#, test in a new PowerShell window.**
 

@@ -30,8 +30,13 @@ function Import-PowerScapGui {
         $refs = foreach ($name in $script:WpfAssemblies) {
             ([AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { -not $_.IsDynamic -and $_.GetName().Name -eq $name } | Select-Object -First 1).Location
         }
-        $refs += @('System.Xml', 'System.Core', 'System.Web.Extensions', 'System.Xaml', $engine)
-        Add-Type -Path $sources.FullName -ReferencedAssemblies $refs -OutputAssembly $dll -OutputType Library -ErrorAction Stop
+        # The engine's own references (under PowerShell 7, .NET's reference assemblies) plus WPF and the engine.
+        $refs += @($script:EngineReferences) + @($engine)
+        if (-not $script:IsCore) { $refs += @('System.Xaml') }
+        $warnings = @{}
+        if ($script:IsCore) { $warnings.IgnoreWarnings = $true; $warnings.WarningAction = 'SilentlyContinue' }
+        try { Add-Type -Path $sources.FullName -ReferencedAssemblies $refs -OutputAssembly $dll -OutputType Library -ErrorAction Stop @warnings }
+        catch { Remove-Item -LiteralPath $dll -Force -ErrorAction SilentlyContinue; throw }
     }
     Add-Type -Path $dll -ErrorAction Stop
 }

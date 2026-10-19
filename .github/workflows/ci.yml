@@ -37,3 +37,44 @@ jobs:
         run: |
           powershell -NoProfile -STA -File build\Invoke-Tests.ps1 -ExcludeTag Admin,Slow,Online,Content
           if ($LASTEXITCODE -ne 0) { throw "$LASTEXITCODE test(s) failed" }
+
+  test-pwsh:
+    # The same suite under PowerShell 7 (the runner's pwsh, on .NET 8 or later) with the in-box Pester 3.4.
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests under PowerShell 7
+        shell: pwsh
+        run: |
+          $PSVersionTable | Format-Table -AutoSize
+          pwsh -NoProfile -STA -File build\Invoke-Tests.ps1 -Edition Core -ExcludeTag Admin,Slow,Online,Content
+          if ($LASTEXITCODE -ne 0) { throw "$LASTEXITCODE test(s) failed" }
+
+  smoke:
+    # End to end on Windows Server: detect, download the matching benchmarks from NIST NCP, scan elevated (runners
+    # are administrators), and validate every XCCDF, OVAL and ARF file against the official schemas.
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Smoke test
+        shell: powershell
+        run: |
+          powershell -NoProfile -File tools\Invoke-SmokeTest.ps1 -OutputPath "$env:RUNNER_TEMP\smoke"
+          if ($LASTEXITCODE -ne 0) { throw 'Smoke test failed' }
+
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-${{ matrix.os }}
+          path: ${{ runner.temp }}/smoke
+          if-no-files-found: ignore

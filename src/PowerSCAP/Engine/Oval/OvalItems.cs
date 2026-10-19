@@ -32,7 +32,13 @@ namespace PowerScap.Engine.Oval
 
         public static OvalEntity Missing(string name)
         {
-            var e = new OvalEntity(name, null);
+            return Missing(name, "string");
+        }
+
+        /// <summary>A missing entity of a type whose schema requires its datatype even when absent (version).</summary>
+        public static OvalEntity Missing(string name, string datatype)
+        {
+            var e = new OvalEntity(name, null, datatype);
             e.Status = ItemStatus.DoesNotExist;
             return e;
         }

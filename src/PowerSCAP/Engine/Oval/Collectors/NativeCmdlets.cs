@@ -188,7 +188,7 @@ namespace PowerScap.Engine.Oval
         }
 
         /// <summary>Runs WQL; each instance becomes an object of its non-system properties, optionally mapped.</summary>
-        static CmdletOutput Query(ManagementScope scope, string wql, EnumerationOptions options, Func<string, object, object> map)
+        static CmdletOutput Query(ManagementScope scope, string wql, System.Management.EnumerationOptions options, Func<string, object, object> map)
         {
             var o = new CmdletOutput();
             try
@@ -261,7 +261,7 @@ namespace PowerScap.Engine.Oval
         static CmdletOutput GetNetFirewallProfile(IDictionary<string, string> p, IList<string> properties)
         {
             // The policy store is a per-operation CIM option (a connection-level context is ignored).
-            var options = new EnumerationOptions();
+            var options = new System.Management.EnumerationOptions();
             string store = Value(p, "policystore");
             if (store != null) options.Context.Add("PolicyStore", store);
             string wql = "SELECT * FROM MSFT_NetFirewallProfile";

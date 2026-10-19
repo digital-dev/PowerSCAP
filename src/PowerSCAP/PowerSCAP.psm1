@@ -3,16 +3,39 @@ Set-StrictMode -Version 2.0
 $script:EngineSourceRoot = Join-Path $PSScriptRoot 'Engine'
 # Set when this session runs an engine older than the sources (tools check it: & (Get-Module PowerSCAP) { $EngineStale }).
 $script:EngineStale = $false
-$script:EngineReferences = @(
-    'System.Xml', 'System.Xml.Linq', 'System.Management',
-    'System.DirectoryServices.AccountManagement', 'System.Security', 'System.Core',
-    'System.IO.Compression', 'System.IO.Compression.FileSystem', 'System.Numerics',
-    'System.ServiceProcess', 'System.Web.Extensions'
-)
+# PowerShell 7 runs on .NET, Windows PowerShell 5.1 on .NET Framework: the same sources compile against different
+# assemblies, and each edition keeps its own builds.
+$script:IsCore = $PSVersionTable.PSEdition -eq 'Core'
+$script:EngineReferences = if ($script:IsCore) {
+    # .NET's reference assemblies (PowerShell ships them in $PSHOME\ref; Add-Type drops its defaults when given
+    # references), plus the Windows packages PowerShell carries beside them.
+    $ref = @(Get-ChildItem -LiteralPath (Join-Path $PSHOME 'ref') -Filter *.dll)
+    $refNames = @($ref | ForEach-Object { $_.BaseName })
+    $windows = @('System.Management', 'System.DirectoryServices', 'System.DirectoryServices.AccountManagement',
+        'System.ServiceProcess.ServiceController', 'System.Security.Cryptography.Xml', 'System.Security.AccessControl',
+        'System.Security.Principal.Windows', 'System.IO.FileSystem.AccessControl', 'System.Diagnostics.EventLog',
+        'Microsoft.Win32.Registry') | Where-Object { $refNames -notcontains $_ } |
+        ForEach-Object { Join-Path $PSHOME "$_.dll" } | Where-Object { Test-Path -LiteralPath $_ }
+    @($ref | ForEach-Object { $_.FullName }) + @($windows)
+} else {
+    @(
+        'System.Xml', 'System.Xml.Linq', 'System.Management',
+        'System.DirectoryServices.AccountManagement', 'System.Security', 'System.Core',
+        'System.IO.Compression', 'System.IO.Compression.FileSystem', 'System.Numerics',
+        'System.ServiceProcess', 'System.Web.Extensions'
+    )
+}
 
 function Get-PowerScapBinDirectory {
-    if ($env:POWERSCAP_BINDIR) { return $env:POWERSCAP_BINDIR }
-    Join-Path $env:LOCALAPPDATA 'PowerSCAP\bin'
+    $bin = if ($env:POWERSCAP_BINDIR) { $env:POWERSCAP_BINDIR } else { Join-Path $env:LOCALAPPDATA 'PowerSCAP\bin' }
+    if ($script:IsCore) { Join-Path $bin 'pwsh' } else { $bin }
+}
+
+# The engine's C# sources; under PowerShell 7 also the JSON serializer .NET lacks (Compat\).
+function Get-PowerScapEngineSource {
+    $s = @(Get-ChildItem -LiteralPath $script:EngineSourceRoot -Filter *.cs -Recurse)
+    if ($script:IsCore) { $s += @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'Compat') -Filter *.cs) }
+    @($s | Sort-Object FullName)
 }
 
 function Import-PowerScapEngine {
@@ -23,12 +46,12 @@ function Import-PowerScapEngine {
     [CmdletBinding()]
     param([switch]$Force)
 
-    $sources = @(Get-ChildItem -LiteralPath $script:EngineSourceRoot -Filter *.cs -Recurse | Sort-Object FullName)
+    $sources = Get-PowerScapEngineSource
     $sha = [System.Security.Cryptography.SHA256]::Create()
     try {
         $ms = New-Object System.IO.MemoryStream
         foreach ($s in $sources) {
-            $name = [Text.Encoding]::UTF8.GetBytes($s.FullName.Substring($script:EngineSourceRoot.Length))
+            $name = [Text.Encoding]::UTF8.GetBytes($s.FullName.Substring($PSScriptRoot.Length))
             $ms.Write($name, 0, $name.Length)
             $bytes = [IO.File]::ReadAllBytes($s.FullName)
             $ms.Write($bytes, 0, $bytes.Length)
@@ -54,8 +77,18 @@ function Import-PowerScapEngine {
         # Stale builds are removed when possible; a DLL loaded by another session stays until it is free.
         Get-ChildItem -LiteralPath $bin -Filter 'PowerScap.Engine.*.dll' |
             Remove-Item -Force -ErrorAction SilentlyContinue
-        Add-Type -Path $sources.FullName -ReferencedAssemblies $script:EngineReferences `
-            -OutputAssembly $dll -OutputType Library -ErrorAction Stop
+        try {
+            # .NET marks WebRequest and friends obsolete (they still work); its compiler would stop on those warnings.
+            $warnings = @{}
+            if ($script:IsCore) { $warnings.IgnoreWarnings = $true; $warnings.WarningAction = 'SilentlyContinue' }
+            Add-Type -Path $sources.FullName -ReferencedAssemblies $script:EngineReferences `
+                -OutputAssembly $dll -OutputType Library -ErrorAction Stop @warnings
+        }
+        catch {
+            # A failed compile can leave a partial file that the next import would try to load.
+            Remove-Item -LiteralPath $dll -Force -ErrorAction SilentlyContinue
+            throw
+        }
     }
     Add-Type -Path $dll -ErrorAction Stop
 }

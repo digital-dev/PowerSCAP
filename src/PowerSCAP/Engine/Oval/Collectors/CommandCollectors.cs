@@ -88,7 +88,7 @@ namespace PowerScap.Engine.Oval
 
         static void AddOrMissing(OvalItem item, string name, string value, string datatype)
         {
-            if (value != null) item.Add(name, value, datatype); else item.Entities.Add(OvalEntity.Missing(name));
+            if (value != null) item.Add(name, value, datatype); else item.Entities.Add(OvalEntity.Missing(name, datatype));
         }
 
         public static Dictionary<string, string> RecordFields(ObjectSpec spec, string entity)

@@ -84,7 +84,7 @@ Describe 'ContentCache' {
         $http = New-Object PowerScapTests.FakeTransport
         $http.Map('U_Test-signed.zip', '<html>404</html>')
         $cache = New-Cache $http
-        { $cache.Download((New-Checklist), (New-Resource)) } | Should Throw
+        { $cache.Download((New-Checklist), (New-Resource)) } | Should Throw 'Not usable SCAP content'
         $cache.List().Count | Should Be 0
         @(Get-ChildItem (Join-Path $cache.Root '.partial') -ErrorAction SilentlyContinue).Count | Should Be 0
     }
@@ -125,7 +125,7 @@ Describe 'ContentCache' {
     It 'rejects importing a file that is not SCAP content' {
         $cache = New-Cache
         $bad = Join-Path $work 'bad.xml'; Set-Content $bad '<nope/>'
-        { $cache.Import($bad) } | Should Throw
+        { $cache.Import($bad) } | Should Throw 'Not usable SCAP content'
         $cache.List().Count | Should Be 0
     }
 

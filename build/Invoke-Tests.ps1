@@ -1,26 +1,32 @@
 <#
 .SYNOPSIS
-    Runs the PowerSCAP test suite under Windows PowerShell 5.1 with the in-box Pester 3.4.
+    Runs the PowerSCAP test suite with the in-box Pester 3.4, under Windows PowerShell 5.1 (default) or PowerShell 7.
+.PARAMETER Edition
+    Desktop: Windows PowerShell 5.1, the shipping runtime. Core: PowerShell 7 (pwsh).
 .EXAMPLE
     powershell -NoProfile -File build\Invoke-Tests.ps1 -ExcludeTag Admin,Slow,Online
+.EXAMPLE
+    powershell -NoProfile -File build\Invoke-Tests.ps1 -Edition Core -ExcludeTag Admin,Slow,Online
 #>
 param(
     [string[]]$Tag,
     [string[]]$ExcludeTag,
-    [string]$Path
+    [string]$Path,
+    [ValidateSet('Desktop', 'Core')][string]$Edition = 'Desktop'
 )
 
 # Accept "A,B" as one argument (callers outside PowerShell can't pass arrays).
 $Tag = @($Tag | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $ExcludeTag = @($ExcludeTag | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 
-if ($PSVersionTable.PSEdition -eq 'Core') {
-    # Tests must run on the shipping runtime.
-    $argsList = @('-NoProfile', '-NonInteractive', '-File', $PSCommandPath)
+$current = if ($PSVersionTable.PSEdition -eq 'Core') { 'Core' } else { 'Desktop' }
+if ($current -ne $Edition) {
+    # Run in the requested edition. STA: the GUI tests need a single-threaded apartment.
+    $argsList = @('-NoProfile', '-NonInteractive', '-STA', '-File', $PSCommandPath, '-Edition', $Edition)
     if ($Tag) { $argsList += '-Tag'; $argsList += ($Tag -join ',') }
     if ($ExcludeTag) { $argsList += '-ExcludeTag'; $argsList += ($ExcludeTag -join ',') }
     if ($Path) { $argsList += '-Path'; $argsList += $Path }
-    & powershell.exe @argsList
+    if ($Edition -eq 'Core') { & pwsh @argsList } else { & powershell.exe @argsList }
     exit $LASTEXITCODE
 }
 
