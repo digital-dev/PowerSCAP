@@ -389,7 +389,7 @@
             </Grid>
 
             <!-- 4. Results -->
-            <Grid Grid.Row="1" Margin="24,20,24,12" Visibility="{Binding DataContext.IsResultsPage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisible}}" DataContext="{Binding Results}">
+            <Grid x:Name="resultsPage" Grid.Row="1" Margin="24,20,24,12" Visibility="{Binding DataContext.IsResultsPage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisible}}" DataContext="{Binding Results}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -429,7 +429,11 @@
                                     <TextBlock Text="CAT II " Style="{StaticResource Dim}" FontSize="12"/><TextBlock Text="{Binding Cat2}" FontWeight="SemiBold" FontSize="12" Margin="0,0,10,0"/>
                                     <TextBlock Text="CAT III " Style="{StaticResource Dim}" FontSize="12"/><TextBlock Text="{Binding Cat3}" FontWeight="SemiBold" FontSize="12"/>
                                 </StackPanel>
-                                <TextBlock Text="{Binding When}" Style="{StaticResource Dim}" FontSize="11" Margin="0,4,0,0"/>
+                                <DockPanel Margin="0,4,0,0">
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding CompletenessText}" Foreground="{DynamicResource Accent}" FontSize="11"
+                                               ToolTip="STIG completeness: rules with a status once PowerSCAP checks and answers are counted"/>
+                                    <TextBlock Text="{Binding When}" Style="{StaticResource Dim}" FontSize="11"/>
+                                </DockPanel>
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
@@ -456,7 +460,7 @@
                         </StackPanel>
                         <StackPanel Margin="0,0,12,8">
                             <TextBlock Text="SOURCE" Style="{StaticResource Caption}"/>
-                            <ComboBox Width="90" ItemsSource="{Binding Sources}" SelectedItem="{Binding SourceFilter}"/>
+                            <ComboBox Width="110" ItemsSource="{Binding Sources}" SelectedItem="{Binding SourceFilter}"/>
                         </StackPanel>
                         <StackPanel Margin="0,0,12,8">
                             <TextBlock Text="SEARCH" Style="{StaticResource Caption}"/>
@@ -503,6 +507,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="SOURCE" Binding="{Binding Source}" Width="82"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
@@ -529,6 +534,39 @@
                                         </MultiBinding>
                                     </TextBox.Text>
                                 </TextBox>
+
+                                <!-- Review (manual rules): PowerSCAP's evidence, the question, and the reviewer's answer -->
+                                <Border Background="{DynamicResource AccentSoft}" CornerRadius="6" Padding="12" Margin="0,14,0,0"
+                                        Visibility="{Binding IsManual, Converter={StaticResource BoolToVisible}}">
+                                    <StackPanel>
+                                        <TextBlock Text="REVIEW" Style="{StaticResource Caption}"/>
+                                        <TextBlock Text="{Binding ReviewText}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                                        <TextBlock Text="This rule changed since it was answered; the old answer is not applied." Foreground="{DynamicResource Warn}"
+                                                   TextWrapping="Wrap" Margin="0,4,0,0" Visibility="{Binding NeedsReReview, Converter={StaticResource BoolToVisible}}"/>
+                                        <StackPanel Visibility="{Binding Evidence, Converter={StaticResource PresentToVisible}}">
+                                            <TextBlock Text="WHAT POWERSCAP FOUND" Style="{StaticResource Section}"/>
+                                            <Border Background="{DynamicResource Surface2}" CornerRadius="6" Padding="10">
+                                                <TextBox Text="{Binding Evidence, Mode=OneWay}" Style="{StaticResource Reader}" FontFamily="{StaticResource Mono}" FontSize="12"/>
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="QUESTION" Style="{StaticResource Section}"/>
+                                        <TextBox Text="{Binding Question, Mode=OneWay}" Style="{StaticResource Reader}"/>
+                                        <TextBlock Text="COMMENT" Style="{StaticResource Section}"/>
+                                        <TextBox Text="{Binding DataContext.AnswerComment, ElementName=resultsPage, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True"
+                                                 TextWrapping="Wrap" MinHeight="54" VerticalContentAlignment="Top"
+                                                 ToolTip="Why: who approved it, where it is documented, what you checked"/>
+                                        <WrapPanel Margin="0,10,0,0">
+                                            <Button Content="Not a Finding" Command="{Binding DataContext.SaveAnswerCommand, ElementName=resultsPage}" CommandParameter="Pass" Margin="0,0,8,6"/>
+                                            <Button Content="Open" Command="{Binding DataContext.SaveAnswerCommand, ElementName=resultsPage}" CommandParameter="Fail" Margin="0,0,8,6"/>
+                                            <Button Content="Not Applicable" Command="{Binding DataContext.SaveAnswerCommand, ElementName=resultsPage}" CommandParameter="NotApplicable" Margin="0,0,8,6"/>
+                                            <Button Style="{StaticResource Link}" Content="Withdraw answer" Command="{Binding DataContext.ClearAnswerCommand, ElementName=resultsPage}"
+                                                    VerticalAlignment="Center" Visibility="{Binding IsAnswered, Converter={StaticResource BoolToVisible}}"/>
+                                        </WrapPanel>
+                                        <TextBlock Text="{Binding DataContext.AnswerMessage, ElementName=resultsPage}" Style="{StaticResource Dim}" FontSize="12"
+                                                   Visibility="{Binding DataContext.AnswerMessage, ElementName=resultsPage, Converter={StaticResource PresentToVisible}}"/>
+                                    </StackPanel>
+                                </Border>
+
                                 <TextBlock Text="FINDING DETAILS" Style="{StaticResource Section}"/>
                                 <Border Background="{DynamicResource Surface2}" CornerRadius="6" Padding="10">
                                     <TextBox Text="{Binding Details, Mode=OneWay}" Style="{StaticResource Reader}" FontFamily="{StaticResource Mono}" FontSize="12"/>

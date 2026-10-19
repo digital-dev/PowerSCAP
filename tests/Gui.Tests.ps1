@@ -85,6 +85,7 @@ Describe 'Benchmark detection for cached content' {
 Describe 'GUI window' -Tag Gui {
     $root = Join-Path $env:TEMP ('powerscap-gui-' + [guid]::NewGuid().ToString('N'))
     $env:POWERSCAP_HISTORYDIR = Join-Path $root 'history'
+    $env:POWERSCAP_ANSWERSDIR = Join-Path $root 'answers'
     $cacheRoot = Join-Path $root 'cache'
     (New-Object PowerScap.Engine.Cache.ContentCache($cacheRoot, (New-Object PowerScapTests.FakeTransport))).Import($mini) | Out-Null
     $settings = New-Object PowerScap.Gui.GuiSettings
@@ -228,10 +229,56 @@ Describe 'GUI window' -Tag Gui {
         $vm.Checklist.SelectedListing.Path | Should Be $vm.Checklist.File.Path
     }
 
+    It 'answers a manual rule from the rule detail, then withdraws the answer' -Skip:(-not $isSta) {
+        # Profile p3 holds the fixture's manual (OCIL) rules.
+        $item = $vm.Content.Items[0]
+        $item.Profile = $item.Profiles | Where-Object Id -eq 'xccdf_test_profile_p3'
+        $item.IsSelected = $true
+        Start-Sleep -Milliseconds 1100
+        $vm.Content.ScanSelectedCommand.Execute($null)
+        $n = 0
+        while ($vm.Scan.IsRunning -and $n++ -lt 60) { Wait-Ui 0.5 }
+        $vm.Page = 'Results'
+        Wait-Ui 2
+        $vm.Results.SelectedRun = $vm.Results.SelectedTile.Runs[0]
+        $n = 0
+        while ($vm.Results.IsLoading -and $n++ -lt 20) { Wait-Ui 0.25 }
+        $row = $vm.Results.Rows | Where-Object IsManual | Select-Object -First 1
+        $row | Should Not BeNullOrEmpty
+        $row.Source | Should Be 'Manual'
+        $before = $vm.Results.Report.Completeness
+
+        $vm.Results.SelectedRow = $row
+        Wait-Ui 0.5
+        $vm.Results.AnswerComment = 'Checked on the console.'
+        $vm.Results.SaveAnswerCommand.Execute('Fail')
+        $row.Status | Should Be 'Open'
+        $row.Source | Should Be 'Answered'
+        $vm.Results.Report.Completeness | Should BeGreaterThan $before
+        $n = 0
+        while ($vm.Results.IsSavingAnswer -and $n++ -lt 40) { Wait-Ui 0.25 }
+        $vm.Results.AnswerMessage | Should Match 'updated'
+        $cklb = [PowerScap.Engine.Reports.CklbReader]::Read($vm.Results.Report.Files['Checklist'])
+        $back = $cklb.Stigs[0].Rules | Where-Object RuleId -eq $row.RuleId
+        $back.Comments | Should Be 'Checked on the console.'
+        [PowerScap.Engine.Reports.CklbWriter]::Status($back.Result) | Should Be 'open'
+
+        $vm.Results.ClearAnswerCommand.Execute($null)
+        $row.Source | Should Be 'Manual'
+        $row.Status | Should Be 'Not Reviewed'
+        $n = 0
+        while ($vm.Results.IsSavingAnswer -and $n++ -lt 40) { Wait-Ui 0.25 }
+        (New-Object PowerScap.Engine.Reports.AnswerStore($env:POWERSCAP_ANSWERSDIR)).All($vm.Results.Report.Target.HostName).Count | Should Be 0
+    }
+
     It 'renders every page without binding errors' -Skip:(-not $isSta) {
         foreach ($p in 'System', 'Content', 'Scan', 'Results', 'Checklist', 'Settings') {
             $vm.Page = $p
-            if ($p -eq 'Results') { $vm.Results.SelectedRow = $vm.Results.Rows[0] }
+            if ($p -eq 'Results') {
+                # A manual rule, so the review panel (evidence, question, answer buttons) is rendered too.
+                $manual = $vm.Results.Rows | Where-Object IsManual | Select-Object -First 1
+                $vm.Results.SelectedRow = $(if ($manual) { $manual } else { $vm.Results.Rows[0] })
+            }
             if ($p -eq 'Checklist') { $vm.Checklist.SelectedRow = $vm.Checklist.Rows[0] }
             Wait-Ui 0.5
         }
@@ -241,6 +288,7 @@ Describe 'GUI window' -Tag Gui {
     $window.Close()
     [Diagnostics.PresentationTraceSources]::DataBindingSource.Listeners.Remove($errors)
     Remove-Item Env:\POWERSCAP_HISTORYDIR
+    Remove-Item Env:\POWERSCAP_ANSWERSDIR
     Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
 }
 

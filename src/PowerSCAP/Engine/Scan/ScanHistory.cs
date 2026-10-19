@@ -30,6 +30,8 @@ namespace PowerScap.Engine.Scan
         public int NotReviewed { get; set; }
         /// <summary>The scan's .cklb, when one was written (scans saved before this field have none recorded).</summary>
         public string Checklist { get; set; }
+        /// <summary>STIG completeness (0-100) with PowerSCAP checks and answers, when the scan was saved.</summary>
+        public double Completeness { get; set; }
 
         public override string ToString() { return string.Format("{0:yyyy-MM-dd HH:mm}  {1}", Start, Title); }
     }
@@ -81,7 +83,8 @@ namespace PowerScap.Engine.Scan
                 Passed = report.Count(XccdfResult.Pass),
                 Errors = report.Count(XccdfResult.Error) + report.Count(XccdfResult.Unknown),
                 NotReviewed = report.Count(XccdfResult.NotChecked),
-                Checklist = report.Files.ContainsKey("Checklist") ? report.Files["Checklist"] : null
+                Checklist = report.Files.ContainsKey("Checklist") ? report.Files["Checklist"] : null,
+                Completeness = report.Completeness
             };
             var json = Json();
             File.WriteAllText(reportPath, json.Serialize(report), Encoding.UTF8);

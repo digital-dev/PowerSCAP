@@ -13,23 +13,53 @@ using PowerScap.Engine.Xccdf;
 
 namespace PowerScap.Gui
 {
-    /// <summary>A rule in the findings list, with STIG Viewer status names.</summary>
-    public class RuleRow
+    /// <summary>
+    /// A rule in the findings list, with STIG Viewer status names. The status is the checklist's view: the SCAP result,
+    /// or for a manual rule the PowerSCAP check or answer (see <see cref="Source"/>).
+    /// </summary>
+    public class RuleRow : ObservableObject
     {
         public RuleRow(RuleReport rule)
         {
             Rule = rule;
-            Status = StatusOf(rule.Result);
         }
 
         public RuleReport Rule { get; private set; }
-        public string Status { get; private set; }
+        public string Status { get { return StatusOf(Rule.EffectiveResult); } }
         public string Cat { get { return Rule.Cat; } }
         public string GroupId { get { return Rule.GroupId; } }
         public string StigId { get { return Rule.StigId; } }
         public string RuleId { get { return Rule.RuleId; } }
         public string Title { get { return Rule.Title; } }
-        public string Source { get { return Rule.Source ?? "SCAP"; } }
+        /// <summary>SCAP, Script, Answered, or Manual (left to a person, not yet reviewed).</summary>
+        public string Source { get { return Rule.EffectiveSource; } }
+
+        // The review layers (manual rules only).
+        public bool IsManual { get { return Rule.IsManual; } }
+        public string Question { get { return Rule.Question ?? Rule.CheckText; } }
+        public string Evidence { get { return Rule.Review == null ? null : Rule.Review.Evidence; } }
+        public bool NeedsReReview { get { return Rule.Review != null && Rule.Review.NeedsReReview; } }
+        public bool IsAnswered { get { return Rule.Review != null && Rule.Review.Source == RuleReview.Answer; } }
+        public string AnswerComment { get { return IsAnswered ? Rule.Review.Comment : null; } }
+
+        /// <summary>"PowerSCAP automated", "Answered by ... date", or what is still needed.</summary>
+        public string ReviewText
+        {
+            get
+            {
+                var v = Rule.Review;
+                if (v == null) return "Not reviewed yet. Answer below.";
+                if (v.NeedsReReview) return "This rule changed since it was answered (" + v.Label + "). Review it again.";
+                if (!v.IsDecided) return "PowerSCAP gathered evidence; a person decides. Answer below.";
+                return v.Label + ": " + RuleReview.StatusName(v.Status);
+            }
+        }
+
+        /// <summary>The review changed (an answer was saved or withdrawn).</summary>
+        public void Refresh()
+        {
+            foreach (var p in new[] { "Status", "Source", "Evidence", "NeedsReReview", "IsAnswered", "AnswerComment", "ReviewText" }) Raise(p);
+        }
         public string Ccis { get { return string.Join(", ", Rule.Ccis); } }
         public string Discussion { get { return Rule.Discussion; } }
         public string CheckText { get { return Rule.CheckText; } }
@@ -81,6 +111,9 @@ namespace PowerScap.Gui
         public int Cat1 { get; set; }
         public int Cat2 { get; set; }
         public int Cat3 { get; set; }
+        /// <summary>STIG completeness with PowerSCAP checks and answers (0 when the scan predates it).</summary>
+        public double Completeness { get; set; }
+        public string CompletenessText { get { return Completeness > 0 ? "Reviewed " + Completeness.ToString("0.#", CultureInfo.CurrentCulture) + "%" : null; } }
         public DateTime Start { get; set; }
         public ObservableCollection<RunOption> Runs { get; private set; }
         public string ScoreText { get { return Score.ToString("0.#", CultureInfo.CurrentCulture) + "%"; } }
@@ -94,7 +127,7 @@ namespace PowerScap.Gui
     {
         public static readonly string[] StatusChoices = { "All", "Open", "Not a Finding", "Not Reviewed", "Not Applicable", "Error" };
         public static readonly string[] CatChoices = { "All", "CAT I", "CAT II", "CAT III" };
-        public static readonly string[] SourceChoices = { "All", "SCAP" };
+        public static readonly string[] SourceChoices = { "All", "SCAP", "Script", "Answered", "Manual" };
 
         readonly MainViewModel main;
         readonly Dictionary<string, BenchmarkReport> loaded = new Dictionary<string, BenchmarkReport>(StringComparer.OrdinalIgnoreCase);
@@ -120,6 +153,8 @@ namespace PowerScap.Gui
             RefreshCommand = new RelayCommand(Refresh, () => !IsLoading);
             ClearFiltersCommand = new RelayCommand(() => { StatusFilter = "All"; CatFilter = "All"; SourceFilter = "All"; SearchText = ""; ChangedOnly = false; });
             ShowStatusCommand = new RelayCommand(p => StatusFilter = Convert.ToString(p));
+            SaveAnswerCommand = new RelayCommand(p => SaveAnswer(Convert.ToString(p)), p => selectedRow != null && selectedRow.IsManual && !saving);
+            ClearAnswerCommand = new RelayCommand(ClearAnswer, () => selectedRow != null && selectedRow.IsAnswered && !saving);
         }
 
         public ObservableCollection<ResultTile> Tiles { get; private set; }
@@ -179,7 +214,103 @@ namespace PowerScap.Gui
             }
         }
 
-        public RuleRow SelectedRow { get { return selectedRow; } set { Set(ref selectedRow, value); } }
+        public RuleRow SelectedRow
+        {
+            get { return selectedRow; }
+            set
+            {
+                if (!Set(ref selectedRow, value)) return;
+                AnswerComment = value == null ? "" : (value.AnswerComment ?? "");
+                AnswerMessage = null;
+            }
+        }
+
+        string answerComment = "", answerMessage;
+        bool saving;
+
+        /// <summary>The comment typed for an answer (STIG Viewer's "Comments").</summary>
+        public string AnswerComment { get { return answerComment; } set { Set(ref answerComment, value ?? ""); } }
+        public string AnswerMessage { get { return answerMessage; } private set { Set(ref answerMessage, value); } }
+
+        public ICommand SaveAnswerCommand { get; private set; }
+        public ICommand ClearAnswerCommand { get; private set; }
+
+        /// <summary>
+        /// Records a person's answer for the selected manual rule (layer 3), shows it at once, and rewrites this run's
+        /// HTML reports, checklist and saved history in the background. SCAP results are not touched.
+        /// </summary>
+        public void SaveAnswer(string status)
+        {
+            var row = selectedRow;
+            var rep = report;
+            if (row == null || rep == null || !row.IsManual || saving) return;
+            XccdfResult result;
+            if (!Enum.TryParse(status, out result)) return;
+            string host = rep.Target == null ? Environment.MachineName : rep.Target.HostName;
+            StoredAnswer saved;
+            try { saved = new AnswerStore(AnswerStore.DefaultRoot()).Save(host, rep.BenchmarkId, row.Rule, result, AnswerComment.Trim(), null); }
+            catch (UnauthorizedAccessException)
+            {
+                AnswerMessage = "Answers are kept in " + AnswerStore.DefaultRoot() + ", which needs PowerSCAP running as administrator.";
+                return;
+            }
+            catch (Exception e)
+            {
+                if (e is OutOfMemoryException) throw;
+                AnswerMessage = "The answer could not be saved: " + e.Message;
+                return;
+            }
+            row.Rule.Review = AnswerStore.ToReview(saved, row.Rule, row.Rule.Review);
+            AfterReviewChange(row, rep, "Saved. ");
+        }
+
+        public void ClearAnswer()
+        {
+            var row = selectedRow;
+            var rep = report;
+            if (row == null || rep == null || !row.IsAnswered || saving) return;
+            string host = rep.Target == null ? Environment.MachineName : rep.Target.HostName;
+            try { new AnswerStore(AnswerStore.DefaultRoot()).Remove(host, rep.BenchmarkId, row.Rule.StigId); }
+            catch (UnauthorizedAccessException)
+            {
+                AnswerMessage = "Answers are kept in " + AnswerStore.DefaultRoot() + ", which needs PowerSCAP running as administrator.";
+                return;
+            }
+            // Back to what PowerSCAP's own check found, if it has one (its verdict returns on the next scan).
+            var previous = row.Rule.Review;
+            row.Rule.Review = previous == null || string.IsNullOrEmpty(previous.Evidence) ? null
+                : new RuleReview { Status = XccdfResult.NotChecked, Source = RuleReview.Script, Author = "PowerSCAP", When = previous.When, Evidence = previous.Evidence };
+            AnswerComment = "";
+            AfterReviewChange(row, rep, "Answer withdrawn. ");
+        }
+
+        /// <summary>True while a run's outputs are being rewritten after an answer changed.</summary>
+        public bool IsSavingAnswer { get { return saving; } }
+
+        void AfterReviewChange(RuleRow row, BenchmarkReport rep, string done)
+        {
+            row.Refresh();
+            Refilter();
+            string historyPath = run != null && run.Entry != null ? run.Entry.ReportPath : null;
+            saving = true;
+            Raise("IsSavingAnswer");
+            AnswerMessage = done + "Updating this scan's reports and checklist...";
+            Background.Run(() =>
+            {
+                ScanRunner.RewriteReviewedOutputs(rep);
+                if (historyPath != null) new ScanHistory(Path.GetDirectoryName(historyPath)).Update(historyPath, rep);
+            }, () =>
+            {
+                saving = false;
+                Raise("IsSavingAnswer");
+                AnswerMessage = done + "This scan's reports and checklist are updated; later scans reuse the answer.";
+            }, e =>
+            {
+                saving = false;
+                Raise("IsSavingAnswer");
+                AnswerMessage = done + "The reports could not be updated: " + Background.Describe(e);
+            });
+        }
 
         public string StatusFilter { get { return statusFilter; } set { if (Set(ref statusFilter, value ?? "All")) Refilter(); } }
         public string CatFilter { get { return catFilter; } set { if (Set(ref catFilter, value ?? "All")) Refilter(); } }
@@ -242,12 +373,14 @@ namespace PowerScap.Gui
                 if (newest.Entry != null)
                 {
                     t.Version = newest.Entry.Version; t.Open = newest.Entry.Open; t.Cat1 = newest.Entry.Cat1; t.Cat2 = newest.Entry.Cat2; t.Cat3 = newest.Entry.Cat3;
+                    t.Completeness = newest.Report != null ? newest.Report.Completeness : newest.Entry.Completeness;
                 }
                 else
                 {
                     var r = newest.Report;
                     t.Version = r.StigVersion ?? r.Version; t.Open = r.Count(Engine.Xccdf.XccdfResult.Fail);
                     t.Cat1 = r.Open("CAT I"); t.Cat2 = r.Open("CAT II"); t.Cat3 = r.Open("CAT III");
+                    t.Completeness = r.Completeness;
                 }
                 foreach (var o in ordered) t.Runs.Add(o);
                 Tiles.Add(t);
@@ -282,7 +415,7 @@ namespace PowerScap.Gui
                 if (x.Previous != null)
                 {
                     before = new Dictionary<string, string>(StringComparer.Ordinal);
-                    foreach (var rule in x.Previous.Rules) before[rule.RuleId] = RuleRow.StatusOf(rule.Result);
+                    foreach (var rule in x.Previous.Rules) before[rule.RuleId] = RuleRow.StatusOf(rule.EffectiveResult);
                 }
                 HasPrevious = before != null;
                 if (!HasPrevious) ChangedOnly = false;
@@ -314,6 +447,12 @@ namespace PowerScap.Gui
             lock (loaded)
                 if (loaded.TryGetValue(r.Entry.ReportPath, out cached)) return cached;
             var rep = new ScanHistory(Path.GetDirectoryName(r.Entry.ReportPath)).Load(r.Entry.ReportPath);
+            // Answers given after this scan count too (they are kept per rule, not per scan).
+            try { new AnswerStore(AnswerStore.DefaultRoot()).Apply(rep); }
+            catch (Exception e)
+            {
+                if (e is OutOfMemoryException) throw;
+            }
             lock (loaded) loaded[r.Entry.ReportPath] = rep;
             return rep;
         }
@@ -328,7 +467,7 @@ namespace PowerScap.Gui
             {
                 string s = search.Trim();
                 Func<string, bool> has = f => f != null && f.IndexOf(s, StringComparison.OrdinalIgnoreCase) >= 0;
-                if (!(has(r.Title) || has(r.GroupId) || has(r.StigId) || has(r.RuleId) || has(r.Ccis))) return false;
+                if (!(has(r.Title) || has(r.GroupId) || has(r.StigId) || has(r.RuleId) || has(r.Ccis) || has(r.AnswerComment))) return false;
             }
             return true;
         }
@@ -339,8 +478,11 @@ namespace PowerScap.Gui
             int shown = RowsView.Cast<object>().Count();
             if (Rows.Count == 0) { Counts = null; return; }
             Func<string, int> n = s => Rows.Count(x => x.Status == s);
-            Counts = string.Format(CultureInfo.CurrentCulture, "{0} of {1} rules shown   |   Open {2}   Not a Finding {3}   Not Reviewed {4}   Not Applicable {5}   Error {6}",
-                shown, Rows.Count, n("Open"), n("Not a Finding"), n("Not Reviewed"), n("Not Applicable"), n("Error"));
+            Func<string, int> src = s => Rows.Count(x => x.Source == s);
+            Counts = string.Format(CultureInfo.CurrentCulture, "{0} of {1} rules shown   |   Open {2}   Not a Finding {3}   Not Reviewed {4}   Not Applicable {5}   Error {6}" +
+                "   |   PowerSCAP checks {7}   Answered {8}   Awaiting review {9}   |   STIG completeness {10:0.#}%",
+                shown, Rows.Count, n("Open"), n("Not a Finding"), n("Not Reviewed"), n("Not Applicable"), n("Error"),
+                src("Script"), src("Answered"), src("Manual"), report == null ? 0 : report.Completeness);
             if (selectedRow != null && !Matches(selectedRow)) SelectedRow = null;
         }
 
